@@ -66,6 +66,7 @@ require_once __DIR__ . '/../../config/db.php';
 header('Content-Type: application/json');
 
 try {
+    // 1. Get Input
     $input = json_decode(file_get_contents("php://input"), true);
     $username = trim($input['username'] ?? '');
     $password = trim($input['password'] ?? '');
@@ -75,54 +76,52 @@ try {
         exit;
     }
 
-    // SELECT Query
+    // 2. Fetch User
     $stmt = $pdo->prepare("SELECT user_id, employee_id, username, password, role, status FROM users WHERE username = ? LIMIT 1");
     $stmt->execute([$username]);
     $user = $stmt->fetch();
 
-    // check if user exists
+    // 3. Check if user exists
     if (!$user) {
         echo json_encode(['success' => false, 'message' => 'User not found.']);
         exit;
     }
 
-    // check status
+    // 4. Check Status
     if (strtolower(trim($user['status'])) !== 'active') {
         echo json_encode(['success' => false, 'message' => 'Your account is inactive. Please contact admin.']);
         exit;
     }
 
-    // verify password
+    // 5. Verify Password
     if (!password_verify($password, $user['password'])) {
         echo json_encode(['success' => false, 'message' => 'Incorrect password.']);
         exit;
     }
 
-    // set session variables
-    $_SESSION['user_id'] = $userId;
+    // 6. Set Session Variables (FIXED HERE)
+    $_SESSION['user_id'] = $user['user_id'];      // Fixed variable name
     $_SESSION['employee_id'] = $user['employee_id'];
     $_SESSION['username'] = $user['username'];
     $_SESSION['role'] = $user['role'];
 
-    // fetch detailed permissions for this employee
+    // 7. Fetch Permissions
     try {
         $permStmt = $pdo->prepare("SELECT * FROM employee_permissions WHERE employee_id = ?");
         $permStmt->execute([$user['employee_id']]);
         $perms = $permStmt->fetch(PDO::FETCH_ASSOC);
-        
-        // save to session
         $_SESSION['permissions'] = $perms ? $perms : [];
     } catch (Exception $e) {
         $_SESSION['permissions'] = [];
     }
 
-    // update last login 
+    // 8. Update Last Login
     $update = $pdo->prepare("UPDATE users SET last_login = NOW() WHERE user_id = ?");
     $update->execute([$user['user_id']]);
 
-    // redirect based on role
-    $redirect = ($user['role'] === 'Admin') 
-        ? '../../frontend/dashboard/admin_dashboard.php' 
+    // 9. Redirect Logic
+    $redirect = ($user['role'] === 'Admin')
+        ? '../../frontend/dashboard/admin_dashboard.php'
         : '../../frontend/dashboard/employee_dashboard.php';
 
     echo json_encode([
@@ -130,8 +129,6 @@ try {
         'message' => 'Login successful!',
         'redirect' => $redirect
     ]);
-
 } catch (Exception $e) {
     echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
 }
-?>

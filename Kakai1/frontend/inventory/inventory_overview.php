@@ -1,17 +1,20 @@
 <?php
 session_start();
 require_once __DIR__ . '/../../config/db.php';
-$activeModule = 'inventory';
-require_once __DIR__ . '/../includes/auth_check.php'; // Ensure permissions
 
-// role validation (Optional, based on your preference)
+// set active module
+$activeModule = 'inventory';
+
+require_once __DIR__ . '/../includes/auth_check.php';
+
+// role validation
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../../index.php');
     exit;
 }
 requirePermission('inv_view');
 
-// 1. FETCH INVENTORY ITEMS (Directory)
+// fetch inventory items
 try {
     $stmt = $pdo->query("
         SELECT item_id, name, category, stock, reorder_level, price, status, created_at
@@ -23,24 +26,24 @@ try {
     $inventoryItems = [];
 }
 
-// 2. INVENTORY SUMMARY (Stats for Chart)
+// inventory summary
 $inventoryStats = ['active' => 0, 'low_stock' => 0, 'out_of_stock' => 0];
 try {
-    // Count Active items (Stock > Reorder Level)
+    // count active items
     $stmtActive = $pdo->query("SELECT COUNT(*) FROM inventory WHERE stock > reorder_level AND stock > 0");
     $inventoryStats['active'] = $stmtActive->fetchColumn();
 
-    // Count Low Stock (0 < Stock <= Reorder Level)
+    // count low stock items
     $stmtLow = $pdo->query("SELECT COUNT(*) FROM inventory WHERE stock <= reorder_level AND stock > 0");
     $inventoryStats['low_stock'] = $stmtLow->fetchColumn();
 
-    // Count Out of Stock (Stock == 0)
+    // count out of stock items
     $stmtOut = $pdo->query("SELECT COUNT(*) FROM inventory WHERE stock = 0");
     $inventoryStats['out_of_stock'] = $stmtOut->fetchColumn();
 } catch (PDOException $e) {
 }
 
-// 3. RECENT MOVEMENTS (Logs)
+// recnet inventory movements
 $movements = [];
 try {
     $stmt = $pdo->query("
@@ -231,7 +234,7 @@ try {
     </div>
 
     <script>
-        // 1. Initialize Inventory Chart
+        // initialize inventory summary chart
         const ctx = document.getElementById('inventoryChart').getContext('2d');
         new Chart(ctx, {
             type: 'bar',
@@ -256,7 +259,7 @@ try {
             }
         });
 
-        // 2. Delete Confirmation
+        // delete confirmation
         function confirmDelete(itemId) {
             Swal.fire({
                 title: 'Delete Item?',
@@ -269,7 +272,6 @@ try {
                 cancelButtonText: 'Cancel'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // Make sure you have this backend endpoint ready or create it
                     window.location.href = `../../backend/inventory/delete_item.php?id=${itemId}`;
                 }
             });

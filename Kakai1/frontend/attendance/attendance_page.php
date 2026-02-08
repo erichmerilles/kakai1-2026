@@ -39,7 +39,6 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Attendance Log | KakaiOne</title>
     <?php include '../includes/links.php'; ?>
-
 </head>
 
 <body class="bg-light">
@@ -128,7 +127,7 @@ try {
 
                                             <td class="text-end pe-4">
                                                 <?php if (hasPermission('att_approve')): ?>
-                                                    <button class="btn btn-sm btn-outline-secondary" title="Edit Record">
+                                                    <button class="btn btn-sm btn-outline-secondary" onclick="editAttendance(<?= $log['attendance_id'] ?>)" title="Edit Record">
                                                         <i class="bi bi-pencil-square"></i>
                                                     </button>
                                                 <?php endif; ?>
@@ -151,6 +150,105 @@ try {
 
         </div>
     </main>
+
+    <div class="modal fade" id="editAttendanceModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i>Edit Attendance</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="editAttendanceForm">
+                    <div class="modal-body">
+                        <input type="hidden" name="attendance_id" id="edit_attendance_id">
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Time In</label>
+                            <input type="datetime-local" name="time_in" id="edit_time_in" class="form-control" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Time Out</label>
+                            <input type="datetime-local" name="time_out" id="edit_time_out" class="form-control">
+                            <small class="text-muted">Clear this if the employee hasn't clocked out yet.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Status</label>
+                            <select name="status" id="edit_status" class="form-select">
+                                <option value="Present">Present</option>
+                                <option value="Late">Late</option>
+                                <option value="Absent">Absent</option>
+                                <option value="Half Day">Half Day</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // open modal and fetch data
+        async function editAttendance(id) {
+            try {
+                // fetch record details
+                const res = await fetch(`../../backend/attendance/get_attendance.php?id=${id}`);
+                const json = await res.json();
+
+                if (json.success) {
+                    const data = json.data;
+                    document.getElementById('edit_attendance_id').value = data.attendance_id;
+
+                    // value format
+                    document.getElementById('edit_time_in').value = data.time_in_fmt;
+                    document.getElementById('edit_time_out').value = data.time_out_fmt;
+                    document.getElementById('edit_status').value = data.status;
+
+                    const modal = new bootstrap.Modal(document.getElementById('editAttendanceModal'));
+                    modal.show();
+                } else {
+                    Swal.fire('Error', json.message, 'error');
+                }
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Error', 'Failed to fetch record details.', 'error');
+            }
+        }
+
+        // hanlde form submit
+        document.getElementById('editAttendanceForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+
+            try {
+                const res = await fetch('../../backend/attendance/update_attendance.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Updated!',
+                        text: data.message,
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => location.reload());
+                } else {
+                    Swal.fire('Error', data.message, 'error');
+                }
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Error', 'Something went wrong.', 'error');
+            }
+        });
+    </script>
 
 </body>
 

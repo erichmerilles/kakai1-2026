@@ -1,178 +1,239 @@
 <?php
 session_start();
 require_once __DIR__ . '/../../config/db.php';
-$activeModule = 'payroll';
-include '../includes/sidebar.php';
-include '../includes/links.php';
 
-// Redirect if not logged in
+// set active module
+$activeModule = 'payroll';
+
+// role validation
 if (!isset($_SESSION['user_id'])) {
   header('Location: ../auth/login.php');
   exit;
 }
-
 ?>
-<?php include '../includes/links.php'; ?>
-<!--<?php include 'p_sidebar.php'; ?>-->
 
-<!--<div id="sidebar" class="d-flex flex-column">
-  <div class="text-center mb-4">
-    <img src="../assets/images/logo.jpg" width="100" class="rounded mb-2">
-    <h5 class="fw-bold text-light">KakaiOne</h5>
-    <p class="small text-light">Payroll</p>
-  </div>
-  <nav class="nav flex-column px-3">
-    <a href="payroll_module.php" class="nav-link active"><i class="bi bi-wallet2 me-2"></i>Payroll</a>
-    <a href="../employee/employee_module.php" class="nav-link"><i class="bi bi-people-fill me-2"></i>Employees</a>
-    <a href="../attendance/attendance_page.php" class="nav-link"><i class="bi bi-calendar-check me-2"></i>Attendance</a>
-    <div class="mt-auto">
-      <form action="../../backend/auth/logout.php" method="POST">
-        <button class="btn btn-outline-light btn-sm w-100">Logout</button>
-      </form>
-      <p class="text-center text-secondary small mt-3 mb-0">© 2025 KakaiOne</p>
-    </div>
-  </nav>
-</div>-->
+<!DOCTYPE html>
+<html lang="en">
 
-<main id="main-content">
-  <div class="container-fluid p-4">
-    <h3 class="fw-bold mb-4"><i class="bi bi-wallet2 me-2"></i>Payroll</h3>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KakaiOne | Payroll Management</title>
 
-    <div class="module-card mb-4">
-      <h5 class="mb-3">Generate Payroll (custom cutoff)</h5>
-      <div class="row g-2 align-items-end">
-        <div class="col-md-3">
-          <label class="form-label">Start Date</label>
-          <input type="date" id="startDate" class="form-control" />
+  <?php include '../includes/links.php'; ?>
+</head>
+
+<body>
+
+  <?php include '../includes/sidebar.php'; ?>
+
+  <div id="dashboardContainer">
+    <main id="main-content" style="margin-left: 250px; padding: 25px; transition: margin-left 0.3s;">
+      <div class="container-fluid">
+        <h3 class="fw-bold mb-4"><i class="bi bi-wallet2 me-2"></i>Payroll Management</h3>
+
+        <div class="card mb-4 shadow-sm border-0">
+          <div class="card-body">
+            <h5 class="card-title mb-3 fw-bold text-secondary">Generate Payroll (Custom Cutoff)</h5>
+            <div class="row g-2 align-items-end">
+              <div class="col-md-3">
+                <label class="form-label small text-muted">Start Date</label>
+                <input type="date" id="startDate" class="form-control" />
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small text-muted">End Date</label>
+                <input type="date" id="endDate" class="form-control" />
+              </div>
+              <div class="col-md-3">
+                <button id="generateBtn" class="btn btn-warning w-100 fw-bold text-dark">
+                  <i class="bi bi-gear-wide-connected me-1"></i> Generate
+                </button>
+              </div>
+            </div>
+            <div id="genMessage" class="mt-3"></div>
+          </div>
         </div>
-        <div class="col-md-3">
-          <label class="form-label">End Date</label>
-          <input type="date" id="endDate" class="form-control" />
+
+        <div class="card shadow-sm border-0">
+          <div class="card-header bg-dark text-white">
+            <i class="bi bi-clock-history me-2"></i>Payroll Runs History
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0" id="runsTable">
+                <thead class="table-light">
+                  <tr>
+                    <th>Run ID</th>
+                    <th>Period</th>
+                    <th>Created At</th>
+                    <th>Total Gross</th>
+                    <th>Deductions</th>
+                    <th>Total Net</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
         </div>
-        <div class="col-md-3">
-          <button id="generateBtn" class="btn btn-pri">Generate Payroll</button>
-        </div>
+
       </div>
-      <div id="genMessage" class="mt-3"></div>
-    </div>
-
-    <div class="module-card">
-      <h5 class="mb-3">Payroll Runs</h5>
-      <div class="table-responsive">
-        <table class="table table-hover align-middle" id="runsTable">
-          <thead class="table-light">
-            <tr>
-              <th>Run ID</th>
-              <th>Period</th>
-              <th>Created</th>
-              <th>Gross</th>
-              <th>Deductions</th>
-              <th>Net</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-
+    </main>
   </div>
-</main>
 
-<script>
-  async function loadRuns() {
-    const res = await fetch('../../backend/payroll/get_runs.php').then(r => r.json());
-    const tbody = document.querySelector('#runsTable tbody');
-    tbody.innerHTML = '';
-    if (!res.success) return;
-    res.data.forEach(r => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${r.payroll_id}</td>
-      <td>${r.start_date} → ${r.end_date}</td>
-      <td>${r.created_at}</td>
-      <td>₱${Number(r.total_gross).toFixed(2)}</td>
-      <td>₱${Number(r.total_deductions).toFixed(2)}</td>
-      <td><strong>₱${Number(r.total_net).toFixed(2)}</strong></td>
-      <td>
-        <button class="btn btn-sm btn-outline-primary" onclick="viewRun(${r.payroll_id})">View</button>
-      </td>`;
-      tbody.appendChild(tr);
+  <script>
+    // load history
+    async function loadRuns() {
+      try {
+        const res = await fetch('../../backend/payroll/get_runs.php').then(r => r.json());
+        const tbody = document.querySelector('#runsTable tbody');
+        tbody.innerHTML = '';
+
+        if (!res.success || !res.data) {
+          tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No payroll runs found.</td></tr>';
+          return;
+        }
+
+        res.data.forEach(r => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+                        <td><span class="badge bg-secondary">#${r.payroll_id}</span></td>
+                        <td>${r.start_date} <i class="bi bi-arrow-right-short text-muted"></i> ${r.end_date}</td>
+                        <td class="small text-muted">${r.created_at}</td>
+                        <td>₱${Number(r.total_gross).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td class="text-danger">-₱${Number(r.total_deductions).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td class="fw-bold text-success">₱${Number(r.total_net).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="viewRun(${r.payroll_id})">
+                                <i class="bi bi-eye"></i> View
+                            </button>
+                        </td>`;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error("Error loading runs", err);
+      }
+    }
+
+    // generate payroll
+    document.getElementById('generateBtn').addEventListener('click', async () => {
+      const start = document.getElementById('startDate').value;
+      const end = document.getElementById('endDate').value;
+      const msg = document.getElementById('genMessage');
+
+      msg.innerHTML = '';
+
+      if (!start || !end) {
+        msg.innerHTML = '<div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-2"></i>Please select both start and end dates.</div>';
+        return;
+      }
+
+      // loading state
+      const btn = document.getElementById('generateBtn');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Generating...';
+
+      try {
+        const res = await fetch('../../backend/payroll/generate_payroll.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            start_date: start,
+            end_date: end
+          })
+        }).then(r => r.json());
+
+        if (res.success) {
+          msg.innerHTML = `<div class="alert alert-success py-2"><i class="bi bi-check-circle me-2"></i>Payroll Generated! Run ID: <strong>${res.payroll_id}</strong></div>`;
+          loadRuns();
+        } else {
+          msg.innerHTML = `<div class="alert alert-danger py-2"><i class="bi bi-x-circle me-2"></i>${res.message || 'Error generating payroll.'}</div>`;
+        }
+      } catch (error) {
+        msg.innerHTML = `<div class="alert alert-danger py-2">Server error occurred. Check console.</div>`;
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
     });
-  }
 
-  document.getElementById('generateBtn').addEventListener('click', async () => {
-    const start = document.getElementById('startDate').value;
-    const end = document.getElementById('endDate').value;
-    const msg = document.getElementById('genMessage');
-    msg.innerHTML = '';
-    if (!start || !end) {
-      msg.innerHTML = '<div class="alert alert-warning">Choose start and end dates</div>';
-      return;
+    // view details
+    function viewRun(id) {
+      // NOTE: Ideally, create a real view_payroll.php page instead of document.writing HTML.
+      // Keeping your existing logic for now but wrapped cleaner.
+      const win = window.open('', '_blank', 'width=1000,height=800');
+
+      const html = `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <title>Payroll Run #${id}</title>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+                <style>body { background: #fff9f2; font-family: sans-serif; padding: 20px; }</style>
+            </head>
+            <body>
+                <div class="container">
+                    <div id="root" class="text-center mt-5">
+                        <div class="spinner-border text-warning" role="status"></div>
+                        <p>Loading Payroll Data...</p>
+                    </div>
+                </div>
+
+                <script>
+                    (async function() {
+                        try {
+                            const res = await fetch('../../backend/payroll/get_entries.php?payroll_id=${id}');
+                            const data = await res.json();
+                            const root = document.getElementById('root');
+
+                            if (!data.success) {
+                                root.innerHTML = '<div class="alert alert-danger">Failed to load data: ' + (data.message || 'Unknown error') + '</div>';
+                                return;
+                            }
+
+                            let html = '<div class="d-flex justify-content-between align-items-center mb-4">';
+                            html += '<h3 class="fw-bold">Payroll Run #${id}</h3>';
+                            html += '<button onclick="window.print()" class="btn btn-secondary btn-sm">Print Report</button>';
+                            html += '</div>';
+                            
+                            html += '<table class="table table-bordered table-striped bg-white">';
+                            html += '<thead class="table-dark"><tr><th>Employee</th><th>Gross Pay</th><th>Deductions/Adv</th><th>Net Pay</th><th>Action</th></tr></thead>';
+                            html += '<tbody>';
+
+                            data.data.forEach(row => {
+                                html += '<tr>';
+                                html += '<td class="fw-bold">' + row.first_name + ' ' + row.last_name + '</td>';
+                                html += '<td>₱' + Number(row.gross_pay).toFixed(2) + '</td>';
+                                html += '<td class="text-danger">₱' + Number(row.cash_advance).toFixed(2) + '</td>';
+                                html += '<td class="fw-bold text-success">₱' + Number(row.net_pay).toFixed(2) + '</td>';
+                                html += '<td><a href="../../backend/payroll/payslip.php?payroll_id=${id}&employee_id=' + row.employee_id + '" target="_blank" class="btn btn-sm btn-outline-dark">Print Payslip</a></td>';
+                                html += '</tr>';
+                            });
+
+                            html += '</tbody></table>';
+                            root.innerHTML = html;
+                            root.classList.remove('text-center', 'mt-5'); // Align top-left
+                        } catch (e) {
+                            document.getElementById('root').innerHTML = 'Error loading data.';
+                        }
+                    })();
+                <\/script>
+            </body>
+            </html>
+            `;
+
+      win.document.write(html);
+      win.document.close();
     }
-    msg.innerHTML = '<div class="alert alert-info">Generating payroll — please wait...</div>';
-    const res = await fetch('../../backend/payroll/generate_payroll.php', {
-      method: 'POST',
-      body: JSON.stringify({
-        start_date: start,
-        end_date: end
-      })
-    }).then(r => r.json());
-    if (res.success) {
-      msg.innerHTML = '<div class="alert alert-success">Payroll generated. Run ID: ' + res.payroll_id + '</div>';
-      loadRuns();
-    } else {
-      msg.innerHTML = '<div class="alert alert-danger">' + (res.message || 'Error') + '</div>';
-    }
-  });
 
-  function viewRun(id) {
-    const win = window.open('', '_blank', 'width=1000,height=800');
+    loadRuns();
+  </script>
+</body>
 
-    const html = `
-    <html>
-    <head>
-      <title>Payroll Run ${id}</title>
-      <link rel="stylesheet" href="../../frontend/assets/css/style.css">
-    </head>
-    <body>
-      <div id="root" class="p-4">Loading...</div>
-
-      <script>
-        (async function() {
-          const res = await fetch('../../backend/payroll/get_entries.php?payroll_id=${id}');
-          const data = await res.json();
-          const root = document.getElementById('root');
-
-          if (!data.success) {
-            root.innerHTML = "<div>Failed to load payroll data.</div>";
-            return;
-          }
-
-          let table = "<h3>Payroll Run ${id}</h3>";
-          table += "<table style='width:100%; border-collapse:collapse;' border='1' cellpadding='6'>";
-          table += "<tr><th>Employee</th><th>Gross</th><th>Cash Advance</th><th>Net</th><th>Payslip</th></tr>";
-
-          data.data.forEach(row => {
-            table += "<tr>";
-            table += "<td>" + row.first_name + " " + row.last_name + "</td>";
-            table += "<td>₱" + Number(row.gross_pay).toFixed(2) + "</td>";
-            table += "<td>₱" + Number(row.cash_advance).toFixed(2) + "</td>";
-            table += "<td><strong>₱" + Number(row.net_pay).toFixed(2) + "</strong></td>";
-            table += "<td><a href='../../backend/payroll/payslip.php?payroll_id=${id}&employee_id=" + row.employee_id + "' target='_blank'>Print</a></td>";
-            table += "</tr>";
-          });
-
-          table += "</table>";
-          root.innerHTML = table;
-        })();
-      <\/script>
-    </body>
-    </html>
-  `;
-
-    win.document.write(html);
-    win.document.close();
-  }
-
-  loadRuns();
-</script>
+</html>

@@ -1,6 +1,4 @@
-/* ===============================
-   GLOBAL BASE STYLES
-================================= */
+/* GLOBAL BASE STYLES */
 body {
   font-family: 'Poppins', sans-serif;
   background-color: #fff9f2;
@@ -8,9 +6,7 @@ body {
   padding: 0;
 }
 
-/* ===============================
-   LOGIN PAGE STYLES
-================================= */
+/* LOGIN PAGE STYLES */
 body.login-page {
   height: 100vh;
   display: flex;
@@ -22,9 +18,17 @@ body.login-page {
 }
 
 @keyframes gradientShift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 .text-gradient {
@@ -46,8 +50,15 @@ body.login-page {
 }
 
 @keyframes fadeIn {
-  from { transform: translateY(30px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 h4 {
@@ -74,7 +85,7 @@ h4 {
   height: 100px;
   border-radius: 50%;
   object-fit: cover;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
 
 .brand h3 {
@@ -90,9 +101,7 @@ h4 {
   margin-top: 1rem;
 }
 
-/* ===============================
-   DASHBOARD STYLES - GOLD/BROWN
-================================= */
+/* DASHBOARD STYLES  */
 
 /* Layout */
 #dashboardContainer {
@@ -101,13 +110,11 @@ h4 {
   background-color: #fff9f2;
 }
 
-/* SIDEBAR (Centralized & Themed) 
-   Fixed position 250px width
-*/
+/* SIDEBAR */
 #sidebar {
   width: 250px;
   min-height: 100vh;
-  background: linear-gradient(180deg, #4b2c06, #a8742a); /* Your Brown Theme */
+  background: linear-gradient(180deg, #4b2c06, #a8742a);
   color: #fff;
   position: fixed;
   top: 0;
@@ -121,7 +128,7 @@ h4 {
 
 /* Sidebar Links */
 #sidebar .nav-link {
-  color: #f8e7c0; /* Creamy text */
+  color: #f8e7c0;
   font-weight: 500;
   border-radius: 8px;
   margin: 5px 0;
@@ -137,31 +144,33 @@ h4 {
   transform: translateX(5px);
 }
 
-/* ACTIVE STATE (Golden Highlight) */
+/* ACTIVE STATE */
 #sidebar .nav-link.active {
   background: linear-gradient(45deg, #d2a156, #f2d479);
   color: #4b2c06 !important;
   font-weight: 700;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
-/* SUB-LINKS (For SPA / Submenus) */
-.sub-link, .nav-link.small {
-    transition: all 0.2s;
-    opacity: 0.8;
-    color: #f8e7c0 !important;
+/* SUB-LINKS */
+.sub-link,
+.nav-link.small {
+  transition: all 0.2s;
+  opacity: 0.8;
+  color: #f8e7c0 !important;
 }
 
-.sub-link:hover, .nav-link.small:hover { 
-    color: #f2d479 !important; /* Brighter gold on hover */
-    opacity: 1 !important; 
-    padding-left: 20px; /* Indent effect */
+.sub-link:hover,
+.nav-link.small:hover {
+  color: #f2d479 !important;
+  opacity: 1 !important;
+  padding-left: 20px;
 }
 
 .sub-link.active {
-    color: #f2d479 !important;
-    font-weight: bold;
-    opacity: 1 !important;
+  color: #f2d479 !important;
+  font-weight: bold;
+  opacity: 1 !important;
 }
 
 /* SIDEBAR FOOTER */
@@ -184,11 +193,11 @@ h4 {
 
 /* MAIN CONTENT */
 #main-content {
-  margin-left: 250px; /* Pushes content right */
+  margin-left: 250px;
   background-color: #fffaf3;
   min-height: 100vh;
   padding: 2rem;
-  width: calc(100% - 250px); /* Ensures full width minus sidebar */
+  width: calc(100% - 250px);
   transition: all 0.3s ease;
 }
 
@@ -246,4 +255,38 @@ h4 {
 .table th {
   color: #5a3b09;
   font-weight: 600;
+}
+
+/* CUSTOM SWITCH/CHECKBOX */
+.form-check-input:checked {
+  background-color: #f2d479;
+  border-color: #a8742a;
+}
+
+.form-check-input:focus {
+  border-color: #f2d479;
+  box-shadow: 0 0 0 0.25rem rgba(242, 212, 121, 0.25);
+}
+
+/* PERMISSION ITEMS */
+.permission-item {
+  background-color: #fff;
+  border: 1px solid #e3c08b;
+  transition: background-color 0.2s ease;
+}
+
+.permission-item:hover {
+  background-color: #fffaf3;
+}
+
+/* BOTTOM SPACER */
+.bottom-spacer {
+  height: 100px;
+}
+
+/* BOTTON ACTION BAR */
+.fixed-action-bar {
+  background-color: #fff;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.05);
 }

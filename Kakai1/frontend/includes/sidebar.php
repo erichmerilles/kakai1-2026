@@ -131,37 +131,3 @@ $baseUrl = '/kakai1/frontend';
         <p class="text-center text-secondary small mt-3 mb-0">© 2025 KakaiOne</p>
     </div>
 </nav>
-
-<?php if ($activeModule === 'inventory'): ?>
-    <!--<script>
-        document.addEventListener("DOMContentLoaded", () => {
-            const subLinks = document.querySelectorAll("#inventory-submenu .sub-link");
-
-            function handleSubNavClick(e) {
-                e.preventDefault();
-                const targetId = e.currentTarget.getAttribute('data-target');
-
-                // Reset sub-links
-                subLinks.forEach(link => {
-                    link.classList.remove("text-warning", "fw-bold", "active");
-                    link.classList.add("text-light");
-                    link.style.opacity = "0.8";
-                });
-
-                // Activate clicked sub-link
-                e.currentTarget.classList.remove("text-light");
-                e.currentTarget.classList.add("text-warning", "fw-bold", "active");
-                e.currentTarget.style.opacity = "1";
-
-                // Dispatch Event
-                window.dispatchEvent(new CustomEvent('inventory-nav-change', {
-                    detail: {
-                        targetId
-                    }
-                }));
-            }
-
-            subLinks.forEach(link => link.addEventListener('click', handleSubNavClick));
-        });
-    </script>-->
-<?php endif; ?>
