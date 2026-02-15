@@ -1,15 +1,15 @@
 <?php
-// Ensure session/auth
+// role validation
 if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__ . '/auth_check.php';
 
-// Default active module
+// default active module
 $activeModule = isset($activeModule) ? $activeModule : 'dashboard';
 
-// 1. GET CURRENT PAGE NAME (e.g., 'employee_module.php')
+// current page
 $currentPage = basename($_SERVER['PHP_SELF']);
 
-// Base URL Helper
+// base url for links
 $baseUrl = '/kakai1/frontend';
 ?>
 

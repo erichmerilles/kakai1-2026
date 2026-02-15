@@ -60,42 +60,6 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KakaiOne | Employee Dashboard</title>
     <?php include '../includes/links.php'; ?>
-    <style>
-        .clock-card {
-            background: linear-gradient(135deg, #4b2c06, #a8742a);
-            color: #fff;
-            border-radius: 15px;
-            text-align: center;
-            padding: 2rem;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        }
-
-        .digital-clock {
-            font-size: 3.5rem;
-            font-weight: 700;
-            font-family: 'Courier New', Courier, monospace;
-            text-shadow: 0 0 10px rgba(242, 212, 121, 0.5);
-            color: #f2d479;
-        }
-
-        .date-display {
-            font-size: 1.2rem;
-            opacity: 0.9;
-            margin-bottom: 1.5rem;
-        }
-
-        .btn-attendance {
-            font-size: 1.2rem;
-            padding: 12px 40px;
-            border-radius: 50px;
-            font-weight: bold;
-            transition: transform 0.2s;
-        }
-
-        .btn-attendance:hover {
-            transform: scale(1.05);
-        }
-    </style>
 </head>
 
 <body>

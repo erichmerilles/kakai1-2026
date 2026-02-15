@@ -290,3 +290,50 @@ h4 {
   border-top: 1px solid rgba(0, 0, 0, 0.1);
   box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.05);
 }
+
+/* CLOCK CARD */
+.clock-card {
+  background: linear-gradient(135deg, #4b2c06, #a8742a);
+  color: #fff;
+  border-radius: 15px;
+  text-align: center;
+  padding: 2rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* CLOCK TEXT */
+.digital-clock {
+  font-size: 3.5rem;
+  font-weight: 700;
+  font-family: 'Courier New', Courier, monospace;
+  text-shadow: 0 0 10px rgba(242, 212, 121, 0.5);
+  color: #f2d479;
+}
+
+/* DATE TEXT */
+.date-display {
+  font-size: 1.2rem;
+  opacity: 0.9;
+  margin-bottom: 1.5rem;
+}
+
+/* ATT BUTTON */
+.btn-attendance {
+  font-size: 1.2rem;
+  padding: 12px 40px;
+  border-radius: 50px;
+  font-weight: bold;
+  transition: transform 0.2s;
+}
+
+.btn-attendance:hover {
+  transform: scale(1.05);
+}
+
+.btn-attendance.text-success {
+  color: #198754 !important;
+}
+
+.btn-attendance.text-danger {
+  color: #dc3545 !important;
+}

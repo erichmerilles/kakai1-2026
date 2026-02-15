@@ -158,7 +158,7 @@ try {
                                 <div class="d-flex flex-column gap-3" id="<?= strtolower(str_replace([' ', '&'], '', $moduleName)) ?>">
                                     <?php foreach ($features as $key => $label): ?>
                                         <?php
-                                        // Check if permission is 1 (true)
+                                        // check permission
                                         $isChecked = isset($currentPerms[$key]) && $currentPerms[$key] == 1 ? 'checked' : '';
                                         ?>
                                         <div class="form-check form-switch p-2 rounded permission-item d-flex justify-content-between align-items-center px-3 position-relative">
