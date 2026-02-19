@@ -133,9 +133,9 @@ $dashboardLink = ($_SESSION['role'] === 'Admin')
                             <i class="bi bi-dot"></i> Attendance
                         </a>
                     <?php endif; ?>
-                    <a href="<?= $baseUrl ?>/requests/leave_requests.php" class="nav-link py-1 sub-link <?= $currentPage == 'leave_requests.php' ? 'active-sub' : '' ?>">
+                    <!--<a href="<?= $baseUrl ?>/requests/leave_requests.php" class="nav-link py-1 sub-link <?= $currentPage == 'leave_requests.php' ? 'active-sub' : '' ?>">
                         <i class="bi bi-dot"></i> Leaves
-                    </a>
+                    </a>-->
                     <a href="<?= $baseUrl ?>/requests/cash_advance.php" class="nav-link py-1 sub-link <?= $currentPage == 'cash_advance.php' ? 'active-sub' : '' ?>">
                         <i class="bi bi-dot"></i> Cash Advance
                     </a>

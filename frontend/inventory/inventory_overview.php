@@ -158,19 +158,6 @@ try {
                 </div>
 
                 <div class="row mb-4">
-                    <div class="col-xl-3 col-md-6 mb-3">
-                        <div class="card stat-card border-0 shadow-sm border-left-success h-100 py-2">
-                            <div class="card-body">
-                                <div class="row no-gutters align-items-center">
-                                    <div class="col mr-2">
-                                        <div class="text-xs fw-bold text-success text-uppercase mb-1">Good Stock</div>
-                                        <div class="h4 mb-0 fw-bold text-dark"><?= $inventoryStats['active']; ?></div>
-                                    </div>
-                                    <div class="col-auto"><i class="bi bi-check-circle text-success opacity-50 fs-1"></i></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
                     <div class="col-xl-3 col-md-6 mb-3">
                         <div class="card stat-card border-0 shadow-sm border-left-primary h-100 py-2">
@@ -178,9 +165,31 @@ try {
                                 <div class="row no-gutters align-items-center">
                                     <div class="col mr-2">
                                         <div class="text-xs fw-bold text-primary text-uppercase mb-1">Total Value</div>
-                                        <div class="h5 mb-0 fw-bold text-dark">₱ <?= number_format($inventoryStats['total_value'], 2); ?></div>
+                                        <div class="h5 mb-0 fw-bold text-dark">
+                                            ₱ <?= number_format($inventoryStats['total_value'], 2); ?>
+                                        </div>
                                     </div>
-                                    <div class="col-auto"><i class="bi bi-cash-stack text-primary opacity-50 fs-1"></i></div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-cash-stack text-primary opacity-50 fs-1"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6 mb-3">
+                        <div class="card stat-card border-0 shadow-sm border-left-success h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs fw-bold text-success text-uppercase mb-1">Good Stock</div>
+                                        <div class="h4 mb-0 fw-bold text-dark">
+                                            <?= $inventoryStats['active']; ?>
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-check-circle text-success opacity-50 fs-1"></i>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -192,9 +201,13 @@ try {
                                 <div class="row no-gutters align-items-center">
                                     <div class="col mr-2">
                                         <div class="text-xs fw-bold text-warning text-uppercase mb-1">Low Stock Alerts</div>
-                                        <div class="h4 mb-0 fw-bold text-dark"><?= $inventoryStats['low_stock']; ?></div>
+                                        <div class="h4 mb-0 fw-bold text-dark">
+                                            <?= $inventoryStats['low_stock']; ?>
+                                        </div>
                                     </div>
-                                    <div class="col-auto"><i class="bi bi-exclamation-triangle text-warning opacity-50 fs-1"></i></div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-exclamation-triangle text-warning opacity-50 fs-1"></i>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -206,14 +219,20 @@ try {
                                 <div class="row no-gutters align-items-center">
                                     <div class="col mr-2">
                                         <div class="text-xs fw-bold text-danger text-uppercase mb-1">Out of Stock</div>
-                                        <div class="h4 mb-0 fw-bold text-dark"><?= $inventoryStats['out_of_stock']; ?></div>
+                                        <div class="h4 mb-0 fw-bold text-dark">
+                                            <?= $inventoryStats['out_of_stock']; ?>
+                                        </div>
                                     </div>
-                                    <div class="col-auto"><i class="bi bi-x-circle text-danger opacity-50 fs-1"></i></div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-x-circle text-danger opacity-50 fs-1"></i>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+
                 </div>
+
 
                 <div class="row">
                     <div class="col-lg-8">

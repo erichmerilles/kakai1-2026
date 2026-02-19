@@ -12,18 +12,17 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['employee_id'])) {
 
 // allowed ip
 $allowedIPs = [
-    '123.456.78.90',  // actual ip address
+    '192.168.10.20',  // actual ip address
     '::1',            // Localhost
-    '127.0.0.1'       // Localhost
 ];
 
 // get user IP address
 $userIP = $_SERVER['REMOTE_ADDR'];
 
-// for proxy ip
+/* for proxy ip
 if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
     $userIP = $_SERVER['HTTP_X_FORWARDED_FOR'];
-}
+}*/
 
 // validate IP
 if (!in_array($userIP, $allowedIPs)) {
@@ -51,8 +50,8 @@ if ($type === 'in') {
             exit;
         }
 
-        // determine status
-        $status = (date('H:i') > '09:00') ? 'Late' : 'Present';
+        // work starts at 7 am, otherwise late
+        $status = (date('H:i') > '07:00') ? 'Late' : 'Present';
 
         // insert record
         $insert = $pdo->prepare("
@@ -82,21 +81,45 @@ if ($type === 'in') {
             exit;
         }
 
-        // calculate total hours
+        // auto cap time out to 5 pm
         $timeIn = new DateTime($record['time_in']);
-        $timeOut = new DateTime();
+        $now = new DateTime();
+
+        // define 5 pm
+        $fivePM = new DateTime(date('Y-m-d 17:00:00'));
+
+        // force time out to be 5 pm
+        if ($now > $fivePM) {
+            $timeOut = $fivePM;
+            $autoCapped = true;
+        } else {
+            $timeOut = $now;
+            $autoCapped = false;
+        }
+
+        // calculate total hours
         $interval = $timeIn->diff($timeOut);
         $totalHours = $interval->h + ($interval->i / 60);
+
+        // clock in after 5 pm automatic 0 hours
+        if ($timeOut < $timeIn) {
+            $totalHours = 0;
+        }
 
         // update record
         $update = $pdo->prepare("
             UPDATE attendance 
-            SET time_out = NOW(), total_hours = ? 
+            SET time_out = ?, total_hours = ? 
             WHERE attendance_id = ?
         ");
-        $update->execute([$totalHours, $record['attendance_id']]);
+        $update->execute([$timeOut->format('Y-m-d H:i:s'), $totalHours, $record['attendance_id']]);
 
-        echo json_encode(['success' => true, 'message' => 'Time Out recorded! See you tomorrow.']);
+        // provide feedback message
+        if ($autoCapped) {
+            echo json_encode(['success' => true, 'message' => 'Time Out recorded! (System automatically capped your hours to 5:00 PM)']);
+        } else {
+            echo json_encode(['success' => true, 'message' => 'Time Out recorded! See you tomorrow.']);
+        }
     } catch (PDOException $e) {
         echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
     }

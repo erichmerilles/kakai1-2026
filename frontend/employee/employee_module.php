@@ -1,5 +1,7 @@
 <?php
 session_start();
+date_default_timezone_set('Asia/Manila');
+
 require_once __DIR__ . '/../../config/db.php';
 
 // set active module
@@ -34,14 +36,37 @@ foreach ($employees as $emp) {
   }
 }
 
-// attendance summary
+// daily attendance summary
 $attendanceStats = ['on_time' => 0, 'late' => 0, 'absent' => 0];
+$today = date('Y-m-d');
+
 try {
-  $stmt = $pdo->query("SELECT status, COUNT(*) AS total FROM attendance GROUP BY status");
-  while ($row = $stmt->fetch()) {
-    $key = strtolower(str_replace(' ', '_', $row['status']));
-    if (isset($attendanceStats[$key])) {
-      $attendanceStats[$key] = $row['total'];
+  $stmt = $pdo->prepare("
+        SELECT a.attendance_id, a.status
+        FROM employees e
+        LEFT JOIN attendance a ON a.attendance_id = (
+            SELECT MAX(attendance_id) 
+            FROM attendance sub_a 
+            WHERE sub_a.employee_id = e.employee_id AND DATE(sub_a.time_in) = ?
+        )
+        WHERE e.status = 'Active' AND e.role = 'Employee'
+  ");
+  $stmt->execute([$today]);
+  $dailyRecords = $stmt->fetchAll();
+
+  foreach ($dailyRecords as $record) {
+    if (empty($record['attendance_id'])) {
+      // No attendance record means absent
+      $attendanceStats['absent']++;
+    } else {
+      $status = strtolower($record['status']);
+      if ($status === 'present') {
+        $attendanceStats['on_time']++;
+      } elseif ($status === 'late') {
+        $attendanceStats['late']++;
+      } elseif ($status === 'absent') {
+        $attendanceStats['absent']++;
+      }
     }
   }
 } catch (PDOException $e) {
@@ -134,9 +159,6 @@ try {
             <p class="text-muted mb-0">Manage staff records, access control, and requests.</p>
           </div>
           <div class="d-flex gap-2 text-end">
-            <!--<button onclick="window.print()" class="btn btn-secondary shadow-sm">
-              <i class="bi bi-printer"></i> Print Directory
-            </button>-->
             <a href="employee_form.php" class="btn btn-warning shadow-sm">
               <i class="bi bi-person-plus"></i> Add Employee
             </a>
@@ -177,7 +199,7 @@ try {
               <div class="card-body">
                 <div class="row no-gutters align-items-center">
                   <div class="col mr-2">
-                    <div class="text-xs fw-bold text-danger text-uppercase mb-1">Total Lates</div>
+                    <div class="text-xs fw-bold text-danger text-uppercase mb-1">Today's Lates</div>
                     <div class="h4 mb-0 fw-bold text-dark"><?= $attendanceStats['late']; ?></div>
                   </div>
                   <div class="col-auto"><i class="bi bi-clock-history fa-2x text-danger opacity-50 fs-1"></i></div>
@@ -270,7 +292,7 @@ try {
 
             <div class="card mb-4 shadow-sm">
               <div class="card-header bg-dark text-white">
-                <i class="bi bi-bar-chart me-2"></i>Attendance Summary
+                <i class="bi bi-pie-chart-fill me-2"></i>Today's Attendance Summary
               </div>
               <div class="card-body">
                 <div class="d-flex justify-content-center mb-3">
