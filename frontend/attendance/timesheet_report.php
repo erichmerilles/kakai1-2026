@@ -33,6 +33,7 @@ $hourlyRate = 0.00;
 $sundayRate = 0.00;
 $weekdayFull = 0.00;
 $sundayFull = 0.00;
+$otMultiplier = 1.25; // Standard 25% extra for overtime
 
 try {
     // fetch settings
@@ -44,7 +45,7 @@ try {
     // set sunday hourly rate
     $sundayRate = isset($settings['sunday_rate']) ? (float)$settings['sunday_rate'] : ($hourlyRate * 1.30);
 
-    // set full shift rates
+    // set full shift rates (10 hours default)
     $weekdayFull = isset($settings['weekday_full']) ? (float)$settings['weekday_full'] : ($hourlyRate * 10);
     $sundayFull = isset($settings['sunday_full']) ? (float)$settings['sunday_full'] : ($sundayRate * 10);
 } catch (PDOException $e) {
@@ -52,10 +53,10 @@ try {
 }
 
 try {
-    // fetch attendance logs
+    // fetch attendance logs (Using a.* to safely pull approved_overtime if the column exists)
     $stmt = $pdo->prepare("
         SELECT e.employee_id, e.first_name, e.last_name, 
-               a.time_in, a.time_out, a.status, a.total_hours, DATE(a.time_in) as log_date
+               a.*, DATE(a.time_in) as log_date
         FROM employees e
         JOIN attendance a ON e.employee_id = a.employee_id
         WHERE DATE(a.time_in) BETWEEN ? AND ?
@@ -74,6 +75,7 @@ try {
                 'name' => $row['first_name'] . ' ' . $row['last_name'],
                 'regular_hours' => 0,
                 'sunday_hours' => 0,
+                'ot_hours' => 0,
                 'total_hours' => 0,
                 'days_present' => 0,
                 'lates' => 0,
@@ -81,36 +83,62 @@ try {
             ];
         }
 
-        $hours = (float)$row['total_hours'];
         $logDate = $row['log_date'];
+        $timeInParsed = strtotime($row['time_in']);
+        $timeOutParsed = !empty($row['time_out']) ? strtotime($row['time_out']) : null;
+        
+        $hours = 0;
         $dailyPay = 0;
+        $approvedOT = isset($row['approved_overtime']) ? (float)$row['approved_overtime'] : 0;
 
-        // identify day of week and apply dynamic 10-hour rule
-        if (date('w', strtotime($logDate)) == 0) {
-            // sunday logic
-            $reportData[$empId]['sunday_hours'] += $hours;
+        if ($timeOutParsed) {
+            // ==========================================
+            // DYNAMIC 7 AM to 5 PM CALCULATION
+            // ==========================================
+            $sevenAM = strtotime($logDate . ' 07:00:00');
+            $fivePM = strtotime($logDate . ' 17:00:00');
 
-            if ($hours >= 10) {
-                $dailyPay = $sundayFull; // full Sunday rate
+            // Rule 1: Shift starts at exactly 7 AM (ignore early clock-ins)
+            $effectiveTimeIn = ($timeInParsed < $sevenAM) ? $sevenAM : $timeInParsed;
+
+            // Rule 2: Regular shift caps at 5 PM
+            $effectiveTimeOut = ($timeOutParsed > $fivePM) ? $fivePM : $timeOutParsed;
+
+            // Calculate exact regular hours
+            $hours = ($effectiveTimeOut - $effectiveTimeIn) / 3600;
+            if ($hours < 0) $hours = 0;
+
+            // identify day of week (0 = Sunday)
+            if (date('w', strtotime($logDate)) == 0) {
+                // SUNDAY LOGIC
+                $reportData[$empId]['sunday_hours'] += $hours;
+
+                if ($hours >= 10) {
+                    $dailyPay = $sundayFull; // 10 hrs hits the flat Sunday rate
+                } else {
+                    $dailyPay = $hours * $sundayRate; // Prorated Sunday rate
+                }
+                // Add Overtime Pay (Sunday Rate + Premium)
+                $dailyPay += ($approvedOT * ($sundayRate * $otMultiplier));
+
             } else {
-                $dailyPay = $hours * $sundayRate; // partial hours at sunday rate
-            }
-        } else {
-            // weekday logic
-            $reportData[$empId]['regular_hours'] += $hours;
+                // WEEKDAY LOGIC
+                $reportData[$empId]['regular_hours'] += $hours;
 
-            if ($hours >= 10) {
-                $dailyPay = $weekdayFull; // full weekday rate 
-            } else {
-                $dailyPay = $hours * $hourlyRate; // partial hours at regular hourly rate
+                if ($hours >= 10) {
+                    $dailyPay = $weekdayFull; // 10 hrs hits the flat Weekday rate
+                } else {
+                    $dailyPay = $hours * $hourlyRate; // Prorated regular rate
+                }
+                // Add Overtime Pay (Regular Rate + Premium)
+                $dailyPay += ($approvedOT * ($hourlyRate * $otMultiplier));
             }
         }
 
-        // add daily pay to estimated gross pay
+        // Add daily calculations to total arrays
+        $reportData[$empId]['ot_hours'] += $approvedOT;
         $reportData[$empId]['est_gross'] += $dailyPay;
-
-        // combined total hours and count days present
-        $reportData[$empId]['total_hours'] += $hours;
+        $reportData[$empId]['total_hours'] += ($hours + $approvedOT);
         $reportData[$empId]['days_present']++;
 
         if (strtolower($row['status']) === 'late') {
@@ -133,45 +161,14 @@ try {
     <?php include '../includes/links.php'; ?>
     <style>
         @media print {
-
-            #sidebar,
-            .filter-card,
-            .btn,
-            .alert {
-                display: none !important;
-            }
-
-            #main-content {
-                margin-left: 0 !important;
-                padding: 0 !important;
-            }
-
-            body {
-                background-color: #fff !important;
-            }
-
-            .card {
-                border: none !important;
-                box-shadow: none !important;
-            }
-
-            .card-header {
-                background-color: transparent !important;
-                color: #000 !important;
-                border-bottom: 2px solid #000 !important;
-                padding-left: 0 !important;
-            }
-
-            .print-header {
-                display: block !important;
-                text-align: center;
-                margin-bottom: 20px;
-            }
+            #sidebar, .filter-card, .btn, .alert { display: none !important; }
+            #main-content { margin-left: 0 !important; padding: 0 !important; }
+            body { background-color: #fff !important; }
+            .card { border: none !important; box-shadow: none !important; }
+            .card-header { background-color: transparent !important; color: #000 !important; border-bottom: 2px solid #000 !important; padding-left: 0 !important; }
+            .print-header { display: block !important; text-align: center; margin-bottom: 20px; }
         }
-
-        .print-header {
-            display: none;
-        }
+        .print-header { display: none; }
     </style>
 </head>
 
@@ -187,7 +184,7 @@ try {
                     <h3 class="fw-bold text-dark mb-1">
                         <i class="bi bi-file-earmark-spreadsheet-fill me-2 text-warning"></i>Timesheet Reports
                     </h3>
-                    <p class="text-muted mb-0">Generate exact attendance hours and estimated pay summaries.</p>
+                    <p class="text-muted mb-0">Generate exact attendance hours, approved OT, and estimated pay.</p>
                 </div>
             </div>
 
@@ -235,11 +232,12 @@ try {
                             <thead class="table-light">
                                 <tr>
                                     <th class="ps-4">Employee Name</th>
-                                    <th class="text-center">Days Present</th>
-                                    <th class="text-center">Times Late</th>
-                                    <th class="text-center">Reg. Hours</th>
-                                    <th class="text-center text-warning fw-bold">Sun. Hours</th>
-                                    <th class="text-center">Total Hours</th>
+                                    <th class="text-center">Days</th>
+                                    <th class="text-center">Late</th>
+                                    <th class="text-center">Reg. Hrs</th>
+                                    <th class="text-center text-warning">Sun. Hrs</th>
+                                    <th class="text-center text-primary fw-bold">Apprv. OT</th>
+                                    <th class="text-center">Total Hrs</th>
                                     <th class="text-end pe-4">Estimated Gross Pay</th>
                                 </tr>
                             </thead>
@@ -254,7 +252,7 @@ try {
                                             <td class="ps-4 fw-bold text-dark"><?= htmlspecialchars($data['name']) ?></td>
 
                                             <td class="text-center">
-                                                <span class="badge bg-primary bg-opacity-10 text-primary fs-6 border border-primary px-3">
+                                                <span class="badge bg-primary bg-opacity-10 text-primary fs-6 border border-primary px-2">
                                                     <?= $data['days_present'] ?>
                                                 </span>
                                             </td>
@@ -272,6 +270,10 @@ try {
                                             <td class="text-center fw-bold text-warning bg-warning bg-opacity-10 border-start border-end">
                                                 <?= number_format($data['sunday_hours'], 2) ?>
                                             </td>
+                                            
+                                            <td class="text-center fw-bold text-primary">
+                                                <?= number_format($data['ot_hours'], 2) ?>
+                                            </td>
 
                                             <td class="text-center fw-bold fs-5 text-dark"><?= number_format($data['total_hours'], 2) ?></td>
 
@@ -279,12 +281,12 @@ try {
                                         </tr>
                                     <?php endforeach; ?>
                                     <tr class="table-dark text-white fw-bold">
-                                        <td colspan="6" class="text-end ps-4">GRAND TOTAL ESTIMATED PAYOUT:</td>
+                                        <td colspan="7" class="text-end ps-4">GRAND TOTAL ESTIMATED PAYOUT:</td>
                                         <td class="text-end pe-4 fs-5 text-warning">₱<?= number_format($grandTotalPay, 2) ?></td>
                                     </tr>
                                 <?php else: ?>
                                     <tr>
-                                        <td colspan="7" class="text-center py-5 text-muted">
+                                        <td colspan="8" class="text-center py-5 text-muted">
                                             <i class="bi bi-file-earmark-x display-6 d-block mb-3 opacity-25"></i>
                                             No attendance records found for this date range.
                                         </td>
@@ -297,9 +299,12 @@ try {
             </div>
 
             <div class="alert alert-info mt-4 border-0 shadow-sm d-flex align-items-center">
-                <i class="bi bi-info-circle-fill fs-4 me-3 text-info"></i>
+                <i class="bi bi-info-circle-fill fs-2 me-3 text-info"></i>
                 <div class="small">
-                    <strong>Note for Admin:</strong> Estimated Gross Pay is calculated daily. If an employee completes a <b>10-hour shift</b>, they receive the full flat rate (<b>₱<?= number_format($weekdayFull, 2) ?></b> Reg / <b>₱<?= number_format($sundayFull, 2) ?></b> Sun). If they work less, they receive the prorated hourly rate. Cash Advances are deducted during the final Payroll run.
+                    <strong>Business Logic Applied:</strong><br>
+                    1. <b>Strict 7:00 AM Start:</b> Clock-ins before 7:00 AM are counted starting exactly at 7:00 AM.<br>
+                    2. <b>5:00 PM Cap:</b> Regular hours are capped at 5:00 PM. Employees hitting 10 hours get the <b>Full Rate</b>. Less than 10 hours gets the prorated <b>Hourly Rate</b>.<br>
+                    3. <b>Admin-Approved Overtime:</b> Any time swiped after 5:00 PM is placed in pending and must be approved. Approved OT is calculated with a 25% premium.
                 </div>
             </div>
 
@@ -318,29 +323,21 @@ try {
             const start = new Date(startDateInput.value);
             const end = new Date(endDateInput.value);
 
-            // end date cannot be before start date
             if (end < start) {
                 endDateInput.classList.add('is-invalid');
                 errorMsg.style.display = 'block';
                 submitBtn.disabled = true;
-
-                // auto correct end date
                 endDateInput.min = startDateInput.value;
             } else {
                 endDateInput.classList.remove('is-invalid');
                 errorMsg.style.display = 'none';
                 submitBtn.disabled = false;
-
-                // prevent selecting an end date before the start date
                 endDateInput.min = startDateInput.value;
             }
         }
 
-        // validate on input change
         startDateInput.addEventListener('change', validateDates);
         endDateInput.addEventListener('change', validateDates);
-
-        // page load validation
         validateDates();
     </script>
 </body>
