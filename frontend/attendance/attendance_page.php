@@ -68,6 +68,15 @@ try {
 } catch (PDOException $e) {
     $errorMsg = "Error fetching data: " . $e->getMessage();
 }
+
+// fetch all active employees for manual log
+$activeEmployeesList = [];
+try {
+    $empStmt = $pdo->query("SELECT employee_id, first_name, last_name FROM employees WHERE status = 'Active' AND role = 'Employee' ORDER BY first_name ASC");
+    $activeEmployeesList = $empStmt->fetchAll();
+} catch (PDOException $e) {
+    // handle error
+}
 ?>
 
 <!DOCTYPE html>
@@ -137,7 +146,7 @@ try {
                 </div>
 
                 <div class="d-flex gap-2 align-items-center filter-form">
-                    <form method="GET" class="d-flex gap-2 mb-0">
+                    <form method="GET" class="d-flex gap-2 mb-0 me-2 border-end pe-3">
                         <input type="date" name="date" class="form-control shadow-sm" value="<?= $filterDate ?>" onchange="this.form.submit()">
                         <?php if ($filterDate !== date('Y-m-d')): ?>
                             <a href="attendance_page.php" class="btn btn-secondary shadow-sm" title="Reset to Today">
@@ -145,7 +154,14 @@ try {
                             </a>
                         <?php endif; ?>
                     </form>
-                    <button onclick="window.print()" class="btn btn-secondary shadow-sm ms-2">
+
+                    <?php if (hasPermission('att_approve')): ?>
+                        <button type="button" class="btn btn-primary shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#manualLogModal">
+                            <i class="bi bi-plus-circle me-1"></i> Manual Log
+                        </button>
+                    <?php endif; ?>
+
+                    <button onclick="window.print()" class="btn btn-secondary shadow-sm">
                         <i class="bi bi-printer"></i> Print
                     </button>
                 </div>
@@ -273,21 +289,13 @@ try {
                                             <td>
                                                 <?php
                                                 $statusClass = 'secondary';
-                                                $displayStatus = htmlspecialchars($log['status']);
-
-                                                if ($log['status'] === 'Present') {
-                                                    $statusClass = 'success';
-                                                    $displayStatus = 'Present / On-Time';
-                                                } elseif ($log['status'] === 'Late') {
-                                                    $statusClass = 'warning text-dark';
-                                                } elseif ($log['status'] === 'Absent') {
-                                                    $statusClass = 'danger';
-                                                } elseif ($log['status'] === 'Absent / No Record') {
-                                                    $statusClass = 'danger';
-                                                }
+                                                if ($log['status'] === 'Present') $statusClass = 'success';
+                                                elseif ($log['status'] === 'Late') $statusClass = 'warning text-dark';
+                                                elseif ($log['status'] === 'Absent') $statusClass = 'danger';
+                                                elseif ($log['status'] === 'Absent / No Record') $statusClass = 'danger';
                                                 ?>
                                                 <span class="badge bg-<?= $statusClass ?>">
-                                                    <?= $displayStatus ?>
+                                                    <?= htmlspecialchars($log['status']) ?>
                                                 </span>
                                             </td>
 
@@ -305,8 +313,8 @@ try {
                                 <?php else: ?>
                                     <tr>
                                         <td colspan="6" class="text-center py-5 text-muted">
-                                            <i class="bi bi-people display-6 d-block mb-3 opacity-25"></i>
-                                            No active employees found.
+                                            <i class="bi bi-calendar-x display-6 d-block mb-3 opacity-25"></i>
+                                            No attendance records found for this date.
                                         </td>
                                     </tr>
                                 <?php endif; ?>
@@ -354,6 +362,57 @@ try {
                     <div class="modal-footer bg-light">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-primary fw-bold">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="manualLogModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content shadow">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-clipboard-plus me-2"></i>Add Manual Log</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="manualLogForm">
+                    <div class="modal-body p-4">
+                        <div class="alert alert-info py-2 small mb-4">
+                            <i class="bi bi-info-circle-fill me-2"></i>Use this to input attendance if the internet was down or an employee forgot to clock in.
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-dark">Select Employee <span class="text-danger">*</span></label>
+                            <select name="employee_id" class="form-select" required>
+                                <option value="" disabled selected>-- Choose Employee --</option>
+                                <?php foreach ($activeEmployeesList as $emp): ?>
+                                    <option value="<?= $emp['employee_id'] ?>"><?= htmlspecialchars($emp['first_name'] . ' ' . $emp['last_name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-dark">Time In <span class="text-danger">*</span></label>
+                            <input type="datetime-local" name="time_in" class="form-control" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-dark">Time Out</label>
+                            <input type="datetime-local" name="time_out" class="form-control">
+                            <small class="text-muted d-block mt-1">Leave blank if the shift is not yet over.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-dark">Status <span class="text-danger">*</span></label>
+                            <select name="status" class="form-select fw-bold" required>
+                                <option value="Present">Present (On-Time)</option>
+                                <option value="Late">Late</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light border-0">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary fw-bold px-4">Submit Log</button>
                     </div>
                 </form>
             </div>
@@ -425,6 +484,35 @@ try {
             } catch (error) {
                 console.error(error);
                 Swal.fire('Error', 'Something went wrong.', 'error');
+            }
+        });
+
+        // handle manual log submission
+        document.getElementById('manualLogForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+
+            try {
+                const res = await fetch('../../backend/attendance/manual_log.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Log Added!',
+                        text: data.message,
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => location.reload());
+                } else {
+                    Swal.fire('Error', data.message, 'error');
+                }
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Error', 'Something went wrong processing the manual log.', 'error');
             }
         });
     </script>

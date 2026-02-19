@@ -352,7 +352,7 @@ if (empty($notifications)) {
                       <div>
                         <h6 class="mb-1 fw-bold text-dark text-sm">System Update</h6>
                         <p class="mb-0 text-muted small"><?= htmlspecialchars($note['msg']); ?></p>
-                        <small class="text-muted" style="font-size: 0.7rem;">Just now</small>
+                        <!--<small class="text-muted" style="font-size: 0.7rem;">Just now</small>-->
                       </div>
                     </li>
                   <?php endforeach; ?>

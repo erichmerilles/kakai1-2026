@@ -15,7 +15,6 @@ $dashboardLink = ($_SESSION['role'] === 'Admin')
 <style>
     #sidebar {
         background-color: #1e1e2d;
-        /* Modern deep dark color */
         box-shadow: 4px 0 10px rgba(0, 0, 0, 0.1);
         z-index: 1000;
     }
@@ -126,18 +125,21 @@ $dashboardLink = ($_SESSION['role'] === 'Admin')
             <?php if ($activeModule === 'employee'): ?>
                 <div class="sub-menu-container">
                     <a href="<?= $baseUrl ?>/employee/employee_module.php" class="nav-link py-1 sub-link <?= $currentPage == 'employee_module.php' ? 'active-sub' : '' ?>">
-                        <i class="bi bi-dot"></i> Overview
+                        <i class="bi bi-dot"></i> Directory & Overview
                     </a>
+
                     <?php if (hasPermission('att_view')): ?>
                         <a href="<?= $baseUrl ?>/attendance/attendance_page.php" class="nav-link py-1 sub-link <?= $currentPage == 'attendance_page.php' ? 'active-sub' : '' ?>">
-                            <i class="bi bi-dot"></i> Attendance
+                            <i class="bi bi-dot"></i> Daily Attendance
+                        </a>
+
+                        <a href="<?= $baseUrl ?>/attendance/timesheet_report.php" class="nav-link py-1 sub-link <?= $currentPage == 'timesheet_report.php' ? 'active-sub' : '' ?>">
+                            <i class="bi bi-dot"></i> Timesheet Reports
                         </a>
                     <?php endif; ?>
-                    <!--<a href="<?= $baseUrl ?>/requests/leave_requests.php" class="nav-link py-1 sub-link <?= $currentPage == 'leave_requests.php' ? 'active-sub' : '' ?>">
-                        <i class="bi bi-dot"></i> Leaves
-                    </a>-->
+
                     <a href="<?= $baseUrl ?>/requests/cash_advance.php" class="nav-link py-1 sub-link <?= $currentPage == 'cash_advance.php' ? 'active-sub' : '' ?>">
-                        <i class="bi bi-dot"></i> Cash Advance
+                        <i class="bi bi-dot"></i> Cash Advances
                     </a>
                 </div>
             <?php endif; ?>
@@ -190,6 +192,12 @@ $dashboardLink = ($_SESSION['role'] === 'Admin')
             </a>
         <?php endif; ?>
 
+        <?php if ($_SESSION['role'] === 'Admin'): ?>
+            <div class="section-header border-top border-secondary border-opacity-25 pt-3 mt-3">System & Security</div>
+            <a href="<?= $baseUrl ?>/settings/audit_log.php" class="nav-link <?= $activeModule === 'settings' ? 'active' : '' ?>">
+                <i class="bi bi-shield-check me-2 fs-5 align-middle"></i> <span>Audit Trail</span>
+            </a>
+        <?php endif; ?>
 
         <?php if ($_SESSION['role'] !== 'Admin'): ?>
             <div class="section-header border-top border-secondary border-opacity-25 pt-3 mt-3">My Tools</div>
