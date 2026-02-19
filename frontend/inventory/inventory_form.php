@@ -340,7 +340,7 @@ if ($isEdit && $_SERVER['REQUEST_METHOD'] !== 'POST') {
 
           <div class="mb-2">
             <label class="form-label small fw-bold">Category Name</label>
-            <input type="text" name="new_category_name" class="form-control" required placeholder="e.g. Frozen Goods">
+            <input type="text" name="new_category_name" class="form-control" required placeholder="Enter category name...">
           </div>
         </div>
         <div class="modal-footer p-1 bg-light">

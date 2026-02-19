@@ -14,15 +14,24 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Admin') {
 // fetch employees
 try {
   $stmt = $pdo->prepare("
-      SELECT employee_id, first_name, last_name, position, status, date_hired, contact_number, email
-      FROM employees 
-      WHERE role = 'Employee' 
-      ORDER BY date_hired DESC
+        SELECT employee_id, first_name, last_name, position, status, date_hired, contact_number, email
+        FROM employees 
+        WHERE role = 'Employee' 
+        ORDER BY date_hired DESC
     ");
   $stmt->execute();
   $employees = $stmt->fetchAll();
 } catch (PDOException $e) {
   $employees = [];
+}
+
+// calculate employee stats for KPI cards
+$totalEmployees = count($employees);
+$activeEmployees = 0;
+foreach ($employees as $emp) {
+  if (strtolower($emp['status']) === 'active') {
+    $activeEmployees++;
+  }
 }
 
 // attendance summary
@@ -42,10 +51,10 @@ try {
 $leaveRequests = [];
 try {
   $stmt = $pdo->query("
-      SELECT lr.leave_id, u.username, lr.leave_type, lr.start_date, lr.end_date, lr.status
-      FROM leave_requests lr
-      JOIN users u ON lr.employee_id = u.employee_id
-      WHERE lr.status = 'Pending'
+        SELECT lr.leave_id, u.username, lr.leave_type, lr.start_date, lr.end_date, lr.status
+        FROM leave_requests lr
+        JOIN users u ON lr.employee_id = u.employee_id
+        WHERE lr.status = 'Pending'
     ");
   $leaveRequests = $stmt->fetchAll();
 } catch (PDOException $e) {
@@ -61,9 +70,55 @@ try {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>KakaiOne | Employee Management</title>
   <?php include '../includes/links.php'; ?>
+  <style>
+    .stat-card {
+      border-left: 4px solid;
+      transition: transform 0.2s;
+      border-radius: 8px;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-3px);
+    }
+
+    .border-left-primary {
+      border-left-color: #0d6efd !important;
+    }
+
+    .border-left-success {
+      border-left-color: #198754 !important;
+    }
+
+    .border-left-warning {
+      border-left-color: #ffc107 !important;
+    }
+
+    .border-left-danger {
+      border-left-color: #dc3545 !important;
+    }
+
+    @media print {
+
+      #sidebar,
+      .btn,
+      .input-group,
+      .chart-section {
+        display: none !important;
+      }
+
+      #main-content {
+        margin-left: 0 !important;
+        padding: 0 !important;
+      }
+
+      .col-lg-8 {
+        width: 100% !important;
+      }
+    }
+  </style>
 </head>
 
-<body>
+<body class="bg-light">
 
   <?php include '../includes/sidebar.php'; ?>
 
@@ -71,126 +126,202 @@ try {
     <main id="main-content" style="margin-left: 250px; padding: 25px; transition: margin-left 0.3s;">
       <div class="container-fluid">
 
-        <div class="d-flex justify-content-between align-items-center mb-4">
-          <h3 class="fw-bold">
-            <i class="bi bi-people-fill me-2 text-warning"></i>Employee Management
-          </h3>
-          <div class="d-flex flex-column gap-3" style="max-width: 250px;">
-            <a href="employee_form.php" class="btn btn-warning">
+        <div class="d-flex justify-content-between align-items-end mb-4">
+          <div>
+            <h3 class="fw-bold text-dark mb-1">
+              <i class="bi bi-people-fill me-2 text-warning"></i>Employee Management
+            </h3>
+            <p class="text-muted mb-0">Manage staff records, access control, and requests.</p>
+          </div>
+          <div class="d-flex gap-2 text-end">
+            <!--<button onclick="window.print()" class="btn btn-secondary shadow-sm">
+              <i class="bi bi-printer"></i> Print Directory
+            </button>-->
+            <a href="employee_form.php" class="btn btn-warning shadow-sm">
               <i class="bi bi-person-plus"></i> Add Employee
             </a>
           </div>
         </div>
 
-        <div class="card mb-4 shadow-sm">
-          <div class="card-header bg-dark text-white">
-            <i class="bi bi-list-ul me-2"></i>Employee Directory
+        <div class="row mb-4">
+          <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card border-0 shadow-sm border-left-primary h-100 py-2">
+              <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                  <div class="col mr-2">
+                    <div class="text-xs fw-bold text-primary text-uppercase mb-1">Total Employees</div>
+                    <div class="h4 mb-0 fw-bold text-dark"><?= $totalEmployees; ?></div>
+                  </div>
+                  <div class="col-auto"><i class="bi bi-people fa-2x text-primary opacity-50 fs-1"></i></div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="card-body">
-            <div class="table-responsive">
-              <table class="table table-striped align-middle">
-                <thead>
-                  <tr>
-                    <th>Full Name</th>
-                    <th>Position</th>
-                    <th>Contact #</th>
-                    <th>Status</th>
-                    <th>Date Hired</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <?php if (!empty($employees)): ?>
-                    <?php foreach ($employees as $emp): ?>
+
+          <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card border-0 shadow-sm border-left-success h-100 py-2">
+              <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                  <div class="col mr-2">
+                    <div class="text-xs fw-bold text-success text-uppercase mb-1">Active Staff</div>
+                    <div class="h4 mb-0 fw-bold text-dark"><?= $activeEmployees; ?></div>
+                  </div>
+                  <div class="col-auto"><i class="bi bi-person-check fa-2x text-success opacity-50 fs-1"></i></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card border-0 shadow-sm border-left-danger h-100 py-2">
+              <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                  <div class="col mr-2">
+                    <div class="text-xs fw-bold text-danger text-uppercase mb-1">Total Lates</div>
+                    <div class="h4 mb-0 fw-bold text-dark"><?= $attendanceStats['late']; ?></div>
+                  </div>
+                  <div class="col-auto"><i class="bi bi-clock-history fa-2x text-danger opacity-50 fs-1"></i></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card border-0 shadow-sm border-left-warning h-100 py-2">
+              <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                  <div class="col mr-2">
+                    <div class="text-xs fw-bold text-warning text-uppercase mb-1">Pending Leaves</div>
+                    <div class="h4 mb-0 fw-bold text-dark"><?= count($leaveRequests); ?></div>
+                  </div>
+                  <div class="col-auto"><i class="bi bi-envelope-paper fa-2x text-warning opacity-50 fs-1"></i></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+
+          <div class="col-lg-8">
+            <div class="card mb-4 shadow-sm">
+              <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-list-ul me-2"></i>Employee Directory</span>
+                <div class="input-group input-group-sm w-50">
+                  <input type="text" id="employeeSearch" class="form-control" placeholder="Search employees...">
+                  <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                </div>
+              </div>
+              <div class="card-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-striped align-middle mb-0" id="employeeTable">
+                    <thead class="table-light">
                       <tr>
-                        <td><?= htmlspecialchars($emp['first_name'] . ' ' . $emp['last_name']); ?></td>
-                        <td><?= htmlspecialchars($emp['position']); ?></td>
-                        <td><?= htmlspecialchars($emp['contact_number'] ?? 'N/A'); ?></td>
-                        <td>
-                          <span class="badge bg-<?= $emp['status'] === 'Active' ? 'success' : 'secondary'; ?>">
-                            <?= htmlspecialchars($emp['status']); ?>
-                          </span>
-                        </td>
-                        <td><?= date('Y-m-d', strtotime($emp['date_hired'])); ?></td>
-                        <td>
-                          <button class="btn btn-sm btn-info text-white" onclick="viewEmployee(<?= $emp['employee_id']; ?>)" title="View">
-                            <i class="bi bi-eye"></i>
-                          </button>
-                          <button class="btn btn-sm btn-warning" onclick="editEmployee(<?= $emp['employee_id']; ?>)" title="Edit">
-                            <i class="bi bi-pencil"></i>
-                          </button>
-                          <button class="btn btn-sm btn-danger" onclick="confirmDeactivate(<?= $emp['employee_id']; ?>)" title="Deactivate">
-                            <i class="bi bi-x-circle"></i>
-                          </button>
-                          <a href="access_control.php?id=<?= $emp['employee_id']; ?>" class="btn btn-sm btn-dark" title="Access Control">
-                            <i class="bi bi-shield-lock"></i>
-                          </a>
-                        </td>
+                        <th class="ps-3"><i class="bi bi-person-circle"></i> Full Name</th>
+                        <th><i class="bi bi-briefcase"></i> Position</th>
+                        <th><i class="bi bi-telephone"></i> Contact #</th>
+                        <th><i class="bi bi-activity"></i> Status</th>
+                        <th><i class="bi bi-calendar-event"></i> Date Hired</th>
+                        <th class="pe-3"><i class="bi bi-gear"></i> Action</th>
                       </tr>
+                    </thead>
+                    <tbody>
+                      <?php if (!empty($employees)): ?>
+                        <?php foreach ($employees as $emp): ?>
+                          <tr>
+                            <td class="ps-3 fw-bold text-dark"><?= htmlspecialchars($emp['first_name'] . ' ' . $emp['last_name']); ?></td>
+                            <td><?= htmlspecialchars($emp['position']); ?></td>
+                            <td class="text-muted small"><?= htmlspecialchars($emp['contact_number'] ?? 'N/A'); ?></td>
+                            <td>
+                              <span class="badge bg-<?= (strtolower($emp['status']) === 'active') ? 'success' : 'secondary'; ?>">
+                                <?= htmlspecialchars($emp['status']); ?>
+                              </span>
+                            </td>
+                            <td class="text-muted small"><?= date('M d, Y', strtotime($emp['date_hired'])); ?></td>
+                            <td class="pe-3">
+                              <button class="btn btn-sm btn-info text-white" onclick="viewEmployee(<?= $emp['employee_id']; ?>)" title="View">
+                                <i class="bi bi-eye"></i>
+                              </button>
+                              <button class="btn btn-sm btn-warning" onclick="editEmployee(<?= $emp['employee_id']; ?>)" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                              </button>
+                              <button class="btn btn-sm btn-danger" onclick="confirmDeactivate(<?= $emp['employee_id']; ?>)" title="Deactivate">
+                                <i class="bi bi-x-circle"></i>
+                              </button>
+                              <a href="access_control.php?id=<?= $emp['employee_id']; ?>" class="btn btn-sm btn-dark" title="Access Control">
+                                <i class="bi bi-shield-lock"></i>
+                              </a>
+                            </td>
+                          </tr>
+                        <?php endforeach; ?>
+                      <?php else: ?>
+                        <tr>
+                          <td colspan="6" class="text-center text-muted py-4">No employees found.</td>
+                        </tr>
+                      <?php endif; ?>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-4 chart-section">
+
+            <div class="card mb-4 shadow-sm">
+              <div class="card-header bg-dark text-white">
+                <i class="bi bi-bar-chart me-2"></i>Attendance Summary
+              </div>
+              <div class="card-body">
+                <div class="d-flex justify-content-center mb-3">
+                  <canvas id="attendanceChart" style="max-height: 200px;"></canvas>
+                </div>
+                <div class="d-flex justify-content-around text-center border-top pt-3">
+                  <div>
+                    <h5 class="fw-bold text-success mb-0"><?= $attendanceStats['on_time']; ?></h5>
+                    <small class="text-muted">On Time</small>
+                  </div>
+                  <div>
+                    <h5 class="fw-bold text-warning mb-0"><?= $attendanceStats['late']; ?></h5>
+                    <small class="text-muted">Late</small>
+                  </div>
+                  <div>
+                    <h5 class="fw-bold text-danger mb-0"><?= $attendanceStats['absent']; ?></h5>
+                    <small class="text-muted">Absent</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card mb-4 shadow-sm">
+              <div class="card-header bg-dark text-white">
+                <i class="bi bi-envelope-paper me-2"></i>Leave Requests
+              </div>
+              <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                  <?php if (!empty($leaveRequests)): ?>
+                    <?php foreach ($leaveRequests as $req): ?>
+                      <li class="list-group-item d-flex justify-content-between align-items-center p-3">
+                        <div>
+                          <h6 class="mb-1 fw-bold"><?= htmlspecialchars($req['username']); ?></h6>
+                          <span class="badge bg-secondary"><?= htmlspecialchars($req['leave_type']); ?></span>
+                          <div class="small text-muted mt-1">
+                            <?= date('M d', strtotime($req['start_date'])); ?> to <?= date('M d', strtotime($req['end_date'])); ?>
+                          </div>
+                        </div>
+                        <div class="d-flex flex-column gap-2 pe-1">
+                          <a href="../../backend/employee/approve_request.php?id=<?= $req['leave_id']; ?>" class="btn btn-sm btn-success" title="Approve"><i class="bi bi-check-circle"></i></a>
+                          <a href="../../backend/employee/decline_request.php?id=<?= $req['leave_id']; ?>" class="btn btn-sm btn-danger" title="Decline"><i class="bi bi-x-circle"></i></a>
+                        </div>
+                      </li>
                     <?php endforeach; ?>
                   <?php else: ?>
-                    <tr>
-                      <td colspan="6" class="text-center text-muted">No employees found.</td>
-                    </tr>
+                    <li class="list-group-item text-center text-muted p-4">No pending requests.</li>
                   <?php endif; ?>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <div class="card mb-4 shadow-sm">
-          <div class="card-header bg-dark text-white">
-            <i class="bi bi-bar-chart me-2"></i>Attendance Summary
-          </div>
-          <div class="card-body">
-            <div class="row align-items-center">
-              <div class="col-md-8">
-                <canvas id="attendanceChart" height="100"></canvas>
-              </div>
-              <div class="col-md-4">
-                <p><i class="bi bi-check-circle text-success"></i> On-Time: <?= $attendanceStats['on_time']; ?></p>
-                <p><i class="bi bi-clock text-warning"></i> Late: <?= $attendanceStats['late']; ?></p>
-                <p><i class="bi bi-x-circle text-danger"></i> Absent: <?= $attendanceStats['absent']; ?></p>
+                </ul>
               </div>
             </div>
-          </div>
-        </div>
 
-        <div class="card mb-4 shadow-sm">
-          <div class="card-header bg-dark text-white">
-            <i class="bi bi-envelope-paper me-2"></i>Leave Requests
-          </div>
-          <div class="card-body">
-            <table class="table table-striped align-middle">
-              <thead>
-                <tr>
-                  <th>Employee</th>
-                  <th>Type</th>
-                  <th>Date Requested</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                <?php if (!empty($leaveRequests)): ?>
-                  <?php foreach ($leaveRequests as $req): ?>
-                    <tr>
-                      <td><?= htmlspecialchars($req['username']); ?></td>
-                      <td><?= htmlspecialchars($req['leave_type']); ?></td>
-                      <td><?= htmlspecialchars($req['start_date'] . " to " . $req['end_date']); ?></td>
-                      <td>
-                        <a href="../../backend/employee/approve_request.php?id=<?= $req['leave_id']; ?>" class="btn btn-sm btn-success"><i class="bi bi-check-circle"></i></a>
-                        <a href="../../backend/employee/decline_request.php?id=<?= $req['leave_id']; ?>" class="btn btn-sm btn-danger"><i class="bi bi-x-circle"></i></a>
-                      </td>
-                    </tr>
-                  <?php endforeach; ?>
-                <?php else: ?>
-                  <tr>
-                    <td colspan="4" class="text-center text-muted">No pending requests.</td>
-                  </tr>
-                <?php endif; ?>
-              </tbody>
-            </table>
           </div>
         </div>
 
@@ -309,7 +440,42 @@ try {
   </div>
 
   <script>
-    // view modal
+    // search filter
+    document.getElementById('employeeSearch').addEventListener('keyup', function() {
+      let filter = this.value.toLowerCase();
+      let rows = document.querySelectorAll('#employeeTable tbody tr');
+
+      rows.forEach(row => {
+        if (row.cells.length === 1) return; // skip "no items found" row
+        let text = row.innerText.toLowerCase();
+        row.style.display = text.includes(filter) ? '' : 'none';
+      });
+    });
+
+    // chart initialization
+    const ctx = document.getElementById('attendanceChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['On Time', 'Late', 'Absent'],
+        datasets: [{
+          data: [<?= $attendanceStats['on_time']; ?>, <?= $attendanceStats['late']; ?>, <?= $attendanceStats['absent']; ?>],
+          backgroundColor: ['#198754', '#ffc107', '#dc3545'],
+          borderWidth: 0,
+          hoverOffset: 4
+        }]
+      },
+      options: {
+        cutout: '70%',
+        plugins: {
+          legend: {
+            display: false
+          }
+        }
+      }
+    });
+
+    // view modal logic
     async function viewEmployee(id) {
       const modal = new bootstrap.Modal(document.getElementById('viewEmployeeModal'));
       modal.show();
@@ -325,12 +491,12 @@ try {
 
           const badge = document.getElementById('view_status');
           badge.innerText = data.status;
-          badge.className = `badge bg-${data.status === 'Active' ? 'success' : 'secondary'}`;
+          badge.className = `badge bg-${data.status.toLowerCase() === 'active' ? 'success' : 'secondary'}`;
 
           document.getElementById('view_email').innerText = data.email || 'N/A';
           document.getElementById('view_contact').innerText = data.contact_number || 'N/A';
           document.getElementById('view_hired').innerText = data.date_hired;
-          document.getElementById('view_rate').innerText = '₱' + parseFloat(data.daily_rate || 0).toFixed(2);
+          document.getElementById('view_rate').innerText = '₱ ' + parseFloat(data.daily_rate || 0).toFixed(2);
         }
       } catch (error) {
         console.error(error);
@@ -338,7 +504,7 @@ try {
       }
     }
 
-    // edit modal
+    // edit modal logic
     async function editEmployee(id) {
       try {
         const res = await fetch(`../../backend/employee/get_employee.php?id=${id}`);
@@ -346,8 +512,6 @@ try {
 
         if (json.success) {
           const data = json.data;
-
-          // prefill form
           document.getElementById('edit_employee_id').value = data.employee_id;
           document.getElementById('edit_first_name').value = data.first_name;
           document.getElementById('edit_last_name').value = data.last_name;
@@ -358,7 +522,6 @@ try {
           document.getElementById('edit_daily_rate').value = data.daily_rate;
           document.getElementById('edit_date_hired').value = data.date_hired;
 
-          // show modal
           const modal = new bootstrap.Modal(document.getElementById('editEmployeeModal'));
           modal.show();
         }
@@ -371,7 +534,6 @@ try {
     // handle form submit
     document.getElementById('editEmployeeForm').addEventListener('submit', async function(e) {
       e.preventDefault();
-
       const formData = new FormData(this);
 
       try {
@@ -388,9 +550,7 @@ try {
             text: data.message,
             timer: 1500,
             showConfirmButton: false
-          }).then(() => {
-            location.reload();
-          });
+          }).then(() => location.reload());
         } else {
           Swal.fire({
             icon: 'error',
@@ -411,7 +571,7 @@ try {
         text: "This will disable the employee's account.",
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#d33',
+        confirmButtonColor: '#dc3545',
         cancelButtonColor: '#6c757d',
         confirmButtonText: 'Yes, deactivate'
       }).then((result) => {
@@ -420,270 +580,7 @@ try {
         }
       });
     }
-
-    // chart logic
-    const ctx = document.getElementById('attendanceChart').getContext('2d');
-    new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: ['On Time', 'Late', 'Absent'],
-        datasets: [{
-          data: [<?= $attendanceStats['on_time']; ?>, <?= $attendanceStats['late']; ?>, <?= $attendanceStats['absent']; ?>],
-          backgroundColor: ['#198754', '#ffc107', '#dc3545']
-        }]
-      },
-      options: {
-        plugins: {
-          legend: {
-            display: false
-          }
-        },
-        scales: {
-          y: {
-            beginAtZero: true
-          }
-        }
-      }
-    });
   </script>
-
 </body>
 
 </html>
-
-<!-- old code -->
-
-<?php
-/*session_start();
-require_once __DIR__ . '/../../config/db.php';
-include '../includes/links.php';
-
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Admin') {
-  header('Location: ../auth/login.php');
-  exit;
-}
-
-// Fetch Employees
-$employeeQuery = $conn->query("
-  SELECT e.employee_id, e.first_name, e.last_name, e.position, e.status, e.date_hired
-  FROM employees e
-  ORDER BY e.date_hired DESC
-");
-$employees = $employeeQuery ? $employeeQuery->fetch_all(MYSQLI_ASSOC) : [];
-
-// Attendance Summary
-$attendanceStats = ['on_time' => 0, 'late' => 0, 'absent' => 0];
-$aQuery = $conn->query("SELECT status, COUNT(*) AS total FROM attendance GROUP BY status");
-if ($aQuery) {
-  while ($row = $aQuery->fetch_assoc()) {
-    $attendanceStats[strtolower(str_replace(' ', '_', $row['status']))] = $row['total'];
-  }
-}
-
-// Leave Requests
-$reqQuery = $conn->query("
-  SELECT lr.leave_id, u.username, lr.leave_type, lr.start_date, lr.end_date, lr.status
-  FROM leave_requests lr
-  JOIN users u ON lr.employee_id = u.employee_id
-  WHERE lr.status = 'Pending'
-");
-$leaveRequests = $reqQuery ? $reqQuery->fetch_all(MYSQLI_ASSOC) : [];
-?>
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KakaiOne | Employee Management</title>
-  <?php include '../includes/links.php'; ?>
-  <?php include 'e_sidebar.php'; ?>
-</head>
-<body>
-
-    <!-- MAIN CONTENT -->
-<div id="dashboardContainer">
-    <main id="main-content">
-
-      <div class="container">
-
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h3 class="fw-bold">
-              <i class="bi bi-people-fill me-2 text-warning"></i>Employee Management
-            </h3>
-
-            <div class="d-flex flex-column gap-3" style="max-width: 250px;">
-              <a href="../dashboard/admin_dashboard.php" class="btn btn-secondary">
-                <i class="bi bi-arrow-left"></i> Back
-              </a>
-              <a href="employee_form.php" class="btn btn-warning">
-                <i class="bi bi-person-plus"></i> Add Employee
-              </a>
-            </div>
-        </div>
-
-        <!-- EMPLOYEE DIRECTORY -->
-        <div class="card mb-4 shadow-sm">
-          <div class="card-header bg-dark text-white">
-            <i class="bi bi-list-ul me-2"></i>Employee Directory
-          </div>
-
-          <div class="card-body">
-            <div class="table-responsive">
-              <table class="table table-striped align-middle">
-                <thead>
-                  <tr>
-                    <!--<th>ID</th>-->
-                    <th>Full Name</th>
-                    <th>Position</th>
-                    <th>Status</th>
-                    <th>Date Hired</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  <?php if (!empty($employees)): ?>
-                    <?php foreach ($employees as $emp): ?>
-                      <tr>
-                        <!--<td><?= $emp['employee_id']; ?></td>-->
-                        <td><?= $emp['first_name'].' '.$emp['last_name']; ?></td>
-                        <td><?= $emp['position']; ?></td>
-
-                        <td>
-                          <span class="badge bg-<?= $emp['status'] === 'Active' ? 'success' : 'secondary'; ?>">
-                            <?= $emp['status']; ?>
-                          </span>
-                        </td>
-
-                        <td><?= date('Y-m-d', strtotime($emp['date_hired'])); ?></td>
-
-                        <td>
-                          <a href="view_employee.php?id=<?= $emp['employee_id']; ?>" class="btn btn-sm btn-info">
-                            <i class="bi bi-eye"></i>
-                          </a>
-                          <a href="employee_form.php?id=<?= $emp['employee_id']; ?>" class="btn btn-sm btn-warning">
-                            <i class="bi bi-pencil"></i>
-                          </a>
-                          <button class="btn btn-sm btn-danger" onclick="confirmDeactivate(<?= $emp['employee_id']; ?>)">
-                          <i class="bi bi-x-circle"></i>
-                          </button>
-                          <a href="access_control.php?id=<?= $row['employee_id']; ?>" class="btn btn-sm btn-warning">
-                              <i class="bi bi-shield-lock"></i> Access
-                          </a>
-                        </td>
-
-                      </tr>
-                    <?php endforeach; ?>
-                  <?php else: ?>
-                      <tr><td colspan="6" class="text-center">No employees found.</td></tr>
-                  <?php endif; ?>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- ATTENDANCE SUMMARY -->
-        <div class="card mb-4 shadow-sm">
-          <div class="card-header bg-dark text-white">
-            <i class="bi bi-bar-chart me-2"></i>Attendance Summary
-          </div>
-
-          <div class="card-body">
-            <div class="row align-items-center">
-              <div class="col-md-8">
-                <canvas id="attendanceChart" height="100"></canvas>
-              </div>
-
-              <div class="col-md-4">
-                <p><i class="bi bi-check-circle text-success"></i> On-Time: <?= $attendanceStats['on_time']; ?></p>
-                <p><i class="bi bi-clock text-warning"></i> Late: <?= $attendanceStats['late']; ?></p>
-                <p><i class="bi bi-x-circle text-danger"></i> Absent: <?= $attendanceStats['absent']; ?></p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- LEAVE REQUESTS -->
-        <div class="card mb-4 shadow-sm">
-          <div class="card-header bg-dark text-white">
-            <i class="bi bi-envelope-paper me-2"></i>Leave Requests
-          </div>
-
-          <div class="card-body">
-            <table class="table table-striped align-middle">
-              <thead>
-                <tr>
-                  <th>Employee</th>
-                  <th>Type</th>
-                  <th>Date Requested</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                <?php if (!empty($leaveRequests)): ?>
-                  <?php foreach ($leaveRequests as $req): ?>
-                    <tr>
-                      <td><?= $req['username']; ?></td>
-                      <td><?= $req['leave_type']; ?></td>
-                      <td><?= $req['start_date']." to ".$req['end_date']; ?></td>
-
-                      <td>
-                        <a href="../../backend/employees/approve_request.php?id=<?= $req['leave_id']; ?>" class="btn btn-sm btn-success"><i class="bi bi-check-circle"></i></a>
-                        <a href="../../backend/employees/decline_request.php?id=<?= $req['leave_id']; ?>" class="btn btn-sm btn-danger"><i class="bi bi-x-circle"></i></a>
-                      </td>
-                    </tr>
-                  <?php endforeach; ?>
-                <?php else: ?>
-                  <tr><td colspan="4" class="text-center">No pending requests.</td></tr>
-                <?php endif; ?>
-              </tbody>
-
-            </table>
-          </div>
-        </div>
-
-      </div>
-
-    </main>
-
-</div>
-
-<script>
-const ctx = document.getElementById('attendanceChart').getContext('2d');
-new Chart(ctx, {
-  type: 'bar',
-  data: {
-    labels: ['On Time', 'Late', 'Absent'],
-    datasets: [{
-      data: [<?= $attendanceStats['on_time']; ?>, <?= $attendanceStats['late']; ?>, <?= $attendanceStats['absent']; ?>],
-      backgroundColor: ['#198754', '#ffc107', '#dc3545']
-    }]
-  },
-  options: { plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
-});
-
-function confirmDeactivate(empId) {
-  Swal.fire({
-    title: 'Deactivate Employee?',
-    text: "This will disable the employee's account but keep their record in the system.",
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#d33',
-    cancelButtonColor: '#6c757d',
-    confirmButtonText: 'Yes, deactivate',
-    cancelButtonText: 'Cancel'
-  }).then((result) => {
-    if (result.isConfirmed) {
-      window.location.href = `employee_form.php?id=${empId}&action=deactivate`;
-    }
-  });
-}
-
-</script>
-
-</body>
-</html>*/
-?>
