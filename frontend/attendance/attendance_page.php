@@ -80,7 +80,7 @@ try {
     ");
     $pendingOTRequests = $stmt->fetchAll();
 } catch (PDOException $e) {
-    // Handle error
+    // handle error
 }
 
 // fetch all active employees for manual log
@@ -486,7 +486,6 @@ try {
         </div>
     </div>
 
-    <!--<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>-->
     <script>
         // search filter
         document.getElementById('attendanceSearch').addEventListener('keyup', function() {

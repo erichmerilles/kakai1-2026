@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../includes/auth_check.php';
 
 // set active module
 $activeModule = 'payroll';
@@ -10,6 +11,13 @@ if (!isset($_SESSION['user_id'])) {
   header('Location: ../auth/login.php');
   exit;
 }
+
+// check page level permissions
+requirePermission('payroll_view');
+
+// check permissions
+$canGenerate = hasPermission('payroll_generate');
+$canPrint = hasPermission('payslip_print');
 
 // fetch payroll summary stats for KPI cards
 $payrollStats = [
@@ -91,7 +99,8 @@ try {
         padding: 0 !important;
       }
 
-      .col-lg-8 {
+      .col-lg-8,
+      .col-lg-12 {
         width: 100% !important;
       }
     }
@@ -114,9 +123,11 @@ try {
             <p class="text-muted mb-0">Generate payslips, track disbursements, and manage deductions.</p>
           </div>
           <div class="d-flex gap-2">
-            <button onclick="window.print()" class="btn btn-secondary shadow-sm">
-              <i class="bi bi-printer"></i> Print Report
-            </button>
+            <?php if ($canPrint): ?>
+              <button onclick="window.print()" class="btn btn-secondary shadow-sm">
+                <i class="bi bi-printer"></i> Print Report
+              </button>
+            <?php endif; ?>
           </div>
         </div>
 
@@ -179,66 +190,69 @@ try {
         </div>
 
         <div class="row">
-
-          <div class="col-lg-4 generate-section">
-            <div class="card mb-4 shadow-sm border-0">
-              <div class="card-header bg-dark text-white">
-                <i class="bi bi-gear-fill me-2"></i>Generate Payroll
-              </div>
-              <div class="card-body p-4">
-                <p class="small text-muted mb-4">Select a custom cutoff date to calculate employee attendance, deductions, and final net pay.</p>
-
-                <div class="mb-3">
-                  <label class="form-label fw-bold small text-dark">Start Date <span class="text-danger">*</span></label>
-                  <input type="date" id="startDate" class="form-control" />
+          <?php if ($canGenerate): ?>
+            <div class="col-lg-4 generate-section">
+              <div class="card mb-4 shadow-sm border-0">
+                <div class="card-header bg-dark text-white">
+                  <i class="bi bi-gear-fill me-2"></i>Generate Payroll
                 </div>
-                <div class="mb-4">
-                  <label class="form-label fw-bold small text-dark">End Date <span class="text-danger">*</span></label>
-                  <input type="date" id="endDate" class="form-control" />
-                </div>
+                <div class="card-body p-4">
+                  <p class="small text-muted mb-4">Select a custom cutoff date to calculate employee attendance, deductions, and final net pay.</p>
 
-                <button id="generateBtn" class="btn btn-warning w-100 fw-bold text-dark py-2">
-                  <i class="bi bi-gear-wide-connected me-1"></i> Process Payroll
-                </button>
+                  <div class="mb-3">
+                    <label class="form-label fw-bold small text-dark">Start Date <span class="text-danger">*</span></label>
+                    <input type="date" id="startDate" class="form-control" />
+                  </div>
+                  <div class="mb-4">
+                    <label class="form-label fw-bold small text-dark">End Date <span class="text-danger">*</span></label>
+                    <input type="date" id="endDate" class="form-control" />
+                  </div>
 
-                <div id="genMessage" class="mt-3"></div>
-              </div>
-            </div>
-          </div>
+                  <button id="generateBtn" class="btn btn-warning w-100 fw-bold text-dark py-2">
+                    <i class="bi bi-gear-wide-connected me-1"></i> Process Payroll
+                  </button>
 
-          <div class="col-lg-8">
-            <div class="card shadow-sm border-0">
-              <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-clock-history me-2"></i>Payroll Runs History</span>
-                <div class="input-group input-group-sm w-50">
-                  <input type="text" id="tableSearch" class="form-control" placeholder="Search period or run ID...">
-                  <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-                </div>
-              </div>
-              <div class="card-body p-0">
-                <div class="table-responsive">
-                  <table class="table table-striped align-middle mb-0" id="runsTable">
-                    <thead class="table-light">
-                      <tr>
-                        <th class="ps-3">Run ID</th>
-                        <th>Period</th>
-                        <th>Gross Pay</th>
-                        <th>Deductions</th>
-                        <th>Total Net</th>
-                        <th class="text-end pe-3">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                    </tbody>
-                  </table>
+                  <div id="genMessage" class="mt-3"></div>
                 </div>
               </div>
             </div>
-          </div>
+            <div class="col-lg-8">
+            <?php else: ?>
+              <div class="col-lg-12">
+              <?php endif; ?>
+
+              <div class="card shadow-sm border-0">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                  <span><i class="bi bi-clock-history me-2"></i>Payroll Runs History</span>
+                  <div class="input-group input-group-sm w-50">
+                    <input type="text" id="tableSearch" class="form-control" placeholder="Search period or run ID...">
+                    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                  </div>
+                </div>
+                <div class="card-body p-0">
+                  <div class="table-responsive">
+                    <table class="table table-striped align-middle mb-0" id="runsTable">
+                      <thead class="table-light">
+                        <tr>
+                          <th class="ps-3">Run ID</th>
+                          <th>Period</th>
+                          <th>Gross Pay</th>
+                          <th>Deductions</th>
+                          <th>Total Net</th>
+                          <th class="text-end pe-3">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              </div>
+
+            </div>
 
         </div>
-
-      </div>
     </main>
   </div>
 
@@ -290,50 +304,52 @@ try {
       }
     }
 
-    // generate payroll
-    document.getElementById('generateBtn').addEventListener('click', async () => {
-      const start = document.getElementById('startDate').value;
-      const end = document.getElementById('endDate').value;
-      const msg = document.getElementById('genMessage');
+    <?php if ($canGenerate): ?>
+      // generate payroll (Only bind if button exists)
+      document.getElementById('generateBtn').addEventListener('click', async () => {
+        const start = document.getElementById('startDate').value;
+        const end = document.getElementById('endDate').value;
+        const msg = document.getElementById('genMessage');
 
-      msg.innerHTML = '';
+        msg.innerHTML = '';
 
-      if (!start || !end) {
-        msg.innerHTML = '<div class="alert alert-warning py-2 small"><i class="bi bi-exclamation-triangle me-2"></i>Please select both start and end dates.</div>';
-        return;
-      }
-
-      // loading state
-      const btn = document.getElementById('generateBtn');
-      const originalText = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Generating...';
-
-      try {
-        const res = await fetch('../../backend/payroll/generate_payroll.php', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            start_date: start,
-            end_date: end
-          })
-        }).then(r => r.json());
-
-        if (res.success) {
-          msg.innerHTML = `<div class="alert alert-success py-2 small"><i class="bi bi-check-circle me-2"></i>Payroll Generated! Run ID: <strong>${res.payroll_id}</strong></div>`;
-          loadRuns();
-        } else {
-          msg.innerHTML = `<div class="alert alert-danger py-2 small"><i class="bi bi-x-circle me-2"></i>${res.message || 'Error generating payroll.'}</div>`;
+        if (!start || !end) {
+          msg.innerHTML = '<div class="alert alert-warning py-2 small"><i class="bi bi-exclamation-triangle me-2"></i>Please select both start and end dates.</div>';
+          return;
         }
-      } catch (error) {
-        msg.innerHTML = `<div class="alert alert-danger py-2 small">Server error occurred. Check console.</div>`;
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-      }
-    });
+
+        // loading state
+        const btn = document.getElementById('generateBtn');
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Generating...';
+
+        try {
+          const res = await fetch('../../backend/payroll/generate_payroll.php', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              start_date: start,
+              end_date: end
+            })
+          }).then(r => r.json());
+
+          if (res.success) {
+            msg.innerHTML = `<div class="alert alert-success py-2 small"><i class="bi bi-check-circle me-2"></i>Payroll Generated! Run ID: <strong>${res.payroll_id}</strong></div>`;
+            loadRuns();
+          } else {
+            msg.innerHTML = `<div class="alert alert-danger py-2 small"><i class="bi bi-x-circle me-2"></i>${res.message || 'Error generating payroll.'}</div>`;
+          }
+        } catch (error) {
+          msg.innerHTML = `<div class="alert alert-danger py-2 small">Server error occurred. Check console.</div>`;
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+      });
+    <?php endif; ?>
 
     // view details
     function viewRun(id) {
@@ -371,9 +387,13 @@ try {
 
                             let html = '<div class="d-flex justify-content-between align-items-center mb-4">';
                             html += '<h3 class="fw-bold">Payroll Run #${id}</h3>';
-                            html += '<button onclick="window.print()" class="btn btn-secondary btn-sm">Print Master Report</button>';
-                            html += '</div>';
                             
+                            // Check print permissions via PHP injection into JS string
+                            <?php if ($canPrint): ?>
+                                html += '<button onclick="window.print()" class="btn btn-secondary btn-sm">Print Master Report</button>';
+                            <?php endif; ?>
+                            
+                            html += '</div>';
                             html += '<table class="table table-bordered table-striped bg-white align-middle">';
                             html += '<thead class="table-dark"><tr><th>Employee</th><th>Gross Pay</th><th>Deductions/Adv</th><th>Net Pay</th><th class="text-center">Action</th></tr></thead>';
                             html += '<tbody>';
@@ -384,7 +404,13 @@ try {
                                 html += '<td>₱' + Number(row.gross_pay).toFixed(2) + '</td>';
                                 html += '<td class="text-danger">- ₱' + Number(row.cash_advance).toFixed(2) + '</td>';
                                 html += '<td class="fw-bold text-success fs-5">₱' + Number(row.net_pay).toFixed(2) + '</td>';
-                                html += '<td class="text-center"><a href="../../backend/payroll/payslip.php?payroll_id=${id}&employee_id=' + row.employee_id + '" target="_blank" class="btn btn-sm btn-dark">Print Payslip</a></td>';
+                                
+                                <?php if ($canPrint): ?>
+                                    html += '<td class="text-center"><a href="../../backend/payroll/payslip.php?payroll_id=${id}&employee_id=' + row.employee_id + '" target="_blank" class="btn btn-sm btn-dark">Print Payslip</a></td>';
+                                <?php else: ?>
+                                    html += '<td class="text-center"><span class="text-muted small">Restricted</span></td>';
+                                <?php endif; ?>
+                                    
                                 html += '</tr>';
                             });
 

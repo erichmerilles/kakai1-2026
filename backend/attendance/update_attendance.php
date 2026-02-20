@@ -3,11 +3,13 @@ session_start();
 date_default_timezone_set('Asia/Manila');
 
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../frontend/includes/auth_check.php';
+
 header('Content-Type: application/json');
 
-// role validation
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Admin') {
-    echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+// check permissions
+if (!hasPermission('att_edit')) {
+    echo json_encode(['success' => false, 'message' => 'Unauthorized: You do not have permission to edit attendance.']);
     exit;
 }
 

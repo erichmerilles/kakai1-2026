@@ -37,15 +37,17 @@ $modules = [
     'Employees & HR' => [
         'icon' => 'bi-people',
         'features' => [
-            'emp_view' => 'View Employee Directory',
-            'emp_add'  => 'Add New Employee',
-            'emp_edit' => 'Edit Employee Details',
+            'emp_view'   => 'View Employee Directory',
+            'emp_add'    => 'Add New Employee',
+            'emp_edit'   => 'Edit Employee Details',
+            'emp_delete' => 'Delete/Deactivate Employee',
         ]
     ],
     'Attendance Management' => [
         'icon' => 'bi-calendar-check',
         'features' => [
             'att_view'    => 'View Attendance & Timesheets',
+            'att_edit'    => 'Edit Attendance Records',
             'att_approve' => 'Approve Overtime & Add Manual Logs',
         ]
     ],
@@ -54,18 +56,22 @@ $modules = [
         'features' => [
             'payroll_view'     => 'View Payroll History',
             'payroll_generate' => 'Generate Weekly Payroll',
+            'payslip_print'    => 'Print Employee Payslips',
+            'ca_view'          => 'View Cash Advance Lists',
             'ca_manage'        => 'Manage & Approve Cash Advances',
         ]
     ],
     'Inventory Management' => [
         'icon' => 'bi-box-seam',
         'features' => [
-            'inv_view'      => 'View Inventory & Analytics',
-            'inv_add'       => 'Add Items, Categories & Suppliers',
-            'inv_edit'      => 'Edit Inventory Items',
-            'inv_delete'    => 'Delete Inventory Items',
-            'inv_stock_in'  => 'Process Stock IN',
-            'inv_stock_out' => 'Process Stock OUT',
+            'inv_view'       => 'View Inventory & Analytics',
+            'inv_add'        => 'Add Items, Categories & Suppliers',
+            'inv_edit'       => 'Edit Inventory Items',
+            'inv_delete'     => 'Delete Inventory Items',
+            'inv_stock_in'   => 'Process Stock IN',
+            'inv_stock_out'  => 'Process Stock OUT',
+            'inv_cat_manage' => 'Manage Categories',
+            'inv_sup_manage' => 'Manage Suppliers',
         ]
     ],
     'POS & Ordering' => [
@@ -82,21 +88,26 @@ $modules = [
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         // build the SQL dynamically
+        $validKeys = [];
+        foreach ($modules as $moduleData) {
+            foreach ($moduleData['features'] as $key => $label) {
+                $validKeys[] = $key;
+            }
+        }
+
         $columns = ['employee_id'];
         $values = [$empId];
         $updateParts = [];
 
-        foreach ($modules as $group => $moduleData) {
-            foreach ($moduleData['features'] as $key => $label) {
-                // checkbox value
-                $val = isset($_POST[$key]) ? 1 : 0;
+        foreach ($validKeys as $key) {
+            // checkbox value
+            $val = isset($_POST[$key]) ? 1 : 0;
 
-                $columns[] = $key;
-                $values[] = $val;
+            $columns[] = $key;
+            $values[] = $val;
 
-                // for duplicate key update
-                $updateParts[] = "$key = VALUES($key)";
-            }
+            // for duplicate key update
+            $updateParts[] = "$key = VALUES($key)";
         }
 
         $colString = implode(", ", $columns);

@@ -345,10 +345,10 @@ try {
             <div class="alert alert-info mt-4 border-0 shadow-sm d-flex align-items-center">
                 <i class="bi bi-info-circle-fill fs-2 me-3 text-info"></i>
                 <div class="small">
-                    <strong>Business Rules Applied:</strong><br>
+                    <strong>Notes:</strong><br>
                     1. <b>Strict 7:00 AM Start:</b> Clock-ins before 7:00 AM are counted starting exactly at 7:00 AM.<br>
                     2. <b>5:00 PM Cap:</b> Regular hours are capped at 5:00 PM. Employees hitting 10 hours get the <b>Full Rate</b>. Less than 10 hours gets the prorated <b>Hourly Rate</b>. This is calculated dynamically per day.<br>
-                    3. <b>Admin-Approved Overtime:</b> Any time out after 5:00 PM is placed in pending and must be approved. Approved OT is calculated with a standard 25% premium.
+                    3. <b>Admin-Approved Overtime:</b> Any time out after 5:00 PM is placed in pending and must be approved. Approved OT is calculated with a standard 25% OT pay.
                 </div>
             </div>
 

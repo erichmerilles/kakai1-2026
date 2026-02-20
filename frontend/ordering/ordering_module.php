@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../includes/auth_check.php';
 
 // set active module
 $activeModule = 'ordering';
@@ -10,6 +11,12 @@ if (!isset($_SESSION['user_id'])) {
   header('Location: ../auth/login.php');
   exit;
 }
+
+// check page permissions
+requirePermission('order_view');
+
+// check permissions
+$canCreateOrder = hasPermission('order_create');
 ?>
 
 <!DOCTYPE html>
@@ -83,9 +90,12 @@ if (!isset($_SESSION['user_id'])) {
             <a href="order_list.php" class="btn btn-secondary shadow-sm">
               <i class="bi bi-list-ul"></i> View All Orders
             </a>
-            <a href="order_create.php" class="btn btn-warning shadow-sm">
-              <i class="bi bi-plus-lg"></i> Create New Order
-            </a>
+
+            <?php if ($canCreateOrder): ?>
+              <a href="order_create.php" class="btn btn-warning shadow-sm">
+                <i class="bi bi-plus-lg"></i> Create New Order
+              </a>
+            <?php endif; ?>
           </div>
         </div>
 
@@ -210,7 +220,7 @@ if (!isset($_SESSION['user_id'])) {
       });
     });
 
-    // Load Dashboard Data Asynchronously
+    // load dashboard stats and recent orders
     async function loadOverview() {
       try {
         const [pRes, oRes, sRes] = await Promise.all([
@@ -261,7 +271,7 @@ if (!isset($_SESSION['user_id'])) {
             const tr = document.createElement('tr');
             const customerName = r.full_name ? r.full_name : '<span class="text-muted fst-italic">Walk-in Customer</span>';
 
-            // determine status badge color
+            // determine status badge
             let statusBadge = 'secondary';
             if (r.status === 'Pending') statusBadge = 'warning text-dark';
             if (r.status === 'Processing') statusBadge = 'info text-dark';
@@ -269,17 +279,17 @@ if (!isset($_SESSION['user_id'])) {
             if (r.status === 'Cancelled') statusBadge = 'danger';
 
             tr.innerHTML = `
-              <td class="ps-3 fw-bold">#${r.order_id}</td>
-              <td>${customerName}</td>
-              <td><span class="badge bg-${statusBadge}">${r.status}</span></td>
-              <td class="fw-bold">₱${Number(r.total_amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-              <td class="text-muted small">${r.order_date}</td>
-              <td class="text-end pe-3">
-                <a class="btn btn-sm btn-info text-white" href="order_view.php?id=${r.order_id}" title="View Details">
-                  <i class="bi bi-eye"></i> View
-                </a>
-              </td>
-            `;
+                            <td class="ps-3 fw-bold">#${r.order_id}</td>
+                            <td>${customerName}</td>
+                            <td><span class="badge bg-${statusBadge}">${r.status}</span></td>
+                            <td class="fw-bold">₱${Number(r.total_amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                            <td class="text-muted small">${r.order_date}</td>
+                            <td class="text-end pe-3">
+                                <a class="btn btn-sm btn-info text-white" href="order_view.php?id=${r.order_id}" title="View Details">
+                                    <i class="bi bi-eye"></i> View
+                                </a>
+                            </td>
+                        `;
             tbody.appendChild(tr);
           });
         } else {

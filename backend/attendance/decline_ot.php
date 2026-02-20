@@ -1,11 +1,13 @@
 <?php
 session_start();
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../frontend/includes/auth_check.php';
 
 header('Content-Type: application/json');
 
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Admin') {
-    echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+// check permission
+if (!hasPermission('att_approve')) {
+    echo json_encode(['success' => false, 'message' => 'Unauthorized: You do not have permission to manage overtime.']);
     exit;
 }
 

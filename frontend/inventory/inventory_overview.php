@@ -11,6 +11,7 @@ if (!isset($_SESSION['user_id'])) {
     header('Location: ../../index.php');
     exit;
 }
+
 requirePermission('inv_view');
 
 // fetch inventory items
@@ -145,10 +146,6 @@ try {
                     </div>
 
                     <div class="d-flex gap-2">
-                        <!--<button onclick="window.print()" class="btn btn-secondary shadow-sm">
-                            <i class="bi bi-printer"></i> Print Report
-                        </button>-->
-
                         <?php if (hasPermission('inv_add')): ?>
                             <a href="inventory_form.php" class="btn btn-warning shadow-sm">
                                 <i class="bi bi-plus-lg"></i> Add Item
@@ -232,7 +229,6 @@ try {
                     </div>
 
                 </div>
-
 
                 <div class="row">
                     <div class="col-lg-8">
@@ -368,6 +364,8 @@ try {
         </main>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         // search filter for inventory table
         document.getElementById('tableSearch').addEventListener('keyup', function() {
