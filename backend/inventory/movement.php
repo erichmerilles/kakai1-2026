@@ -2,6 +2,7 @@
 session_start();
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../frontend/includes/auth_check.php';
+require_once __DIR__ . '/../utils/logger.php';
 
 header('Content-Type: application/json');
 
@@ -48,12 +49,15 @@ try {
     $u->execute([$qty, $item_id]);
   }
 
-  // check low stock and insert notification if needed
-  $s = $pdo->prepare('SELECT quantity, reorder_level FROM inventory WHERE item_id = ?');
+  // check low stock, get item name, and insert notification if needed
+  $s = $pdo->prepare('SELECT item_name, quantity, reorder_level FROM inventory WHERE item_id = ?');
   $s->execute([$item_id]);
   $it = $s->fetch(PDO::FETCH_ASSOC);
 
+  $itemName = "Unknown Item (ID: $item_id)"; // fallback name
+
   if ($it) {
+    $itemName = $it['item_name'];
     $status = 'Available';
     if ($it['quantity'] <= 0) {
       $status = 'Out of Stock';
@@ -66,13 +70,17 @@ try {
 
     if ($status === 'Low Stock' || $status === 'Out of Stock') {
       // create notification
-      $msg = "Inventory alert: item_id={$item_id} reached {$it['quantity']} (reorder={$it['reorder_level']})";
+      $msg = "Inventory alert: $itemName reached {$it['quantity']} (reorder={$it['reorder_level']})";
       $n = $pdo->prepare('INSERT INTO notifications (employee_id, type, message, status, created_at) VALUES (NULL, ?, ?, ?, NOW())');
       $n->execute(['Inventory', $msg, 'Unread']);
     }
   }
 
   $pdo->commit();
+
+  // log activity
+  logActivity($pdo, $_SESSION['user_id'], 'Stock Update', 'Inventory', "Stock $type: $qty units for item: $itemName");
+
   echo json_encode(['success' => true, 'message' => 'Movement recorded successfully.']);
 } catch (Exception $e) {
   $pdo->rollBack();

@@ -3,6 +3,7 @@ session_start();
 header('Content-Type: application/json');
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../frontend/includes/auth_check.php';
+require_once __DIR__ . '/../utils/logger.php';
 
 // check permissions
 if (!hasPermission('att_approve')) {
@@ -68,6 +69,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $status,
             $totalHours
         ]);
+
+        // log activity
+        logActivity($pdo, $_SESSION['user_id'], 'Manual Entry', 'Attendance', "Manually logged attendance for Employee ID: $empId on " . date('M d, Y', $startTs));
 
         echo json_encode(['success' => true, 'message' => 'Manual attendance log recorded successfully.']);
     } catch (PDOException $e) {

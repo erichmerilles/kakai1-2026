@@ -63,6 +63,7 @@ try {
 
 session_start();
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../utils/logger.php';
 header('Content-Type: application/json');
 
 try {
@@ -76,7 +77,7 @@ try {
         exit;
     }
 
-    // fecth user
+    // fetch user
     $stmt = $pdo->prepare("SELECT user_id, employee_id, username, password, role, status FROM users WHERE username = ? LIMIT 1");
     $stmt->execute([$username]);
     $user = $stmt->fetch();
@@ -118,6 +119,9 @@ try {
     // update last login
     $update = $pdo->prepare("UPDATE users SET last_login = NOW() WHERE user_id = ?");
     $update->execute([$user['user_id']]);
+
+    // log activity
+    logActivity($pdo, $_SESSION['user_id'], 'Login', 'Authentication', 'User successfully logged into the system.');
 
     // redirect based on role
     $redirect = ($user['role'] === 'Admin')

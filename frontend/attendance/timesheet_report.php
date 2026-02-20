@@ -16,6 +16,7 @@ if (!isset($_SESSION['user_id'])) {
 
 // check permissions
 requirePermission('att_view');
+$canGeneratePayroll = hasPermission('payroll_generate');
 
 // default date range
 $endDate = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
@@ -198,6 +199,10 @@ try {
                 text-align: center;
                 margin-bottom: 20px;
             }
+
+            .action-col {
+                display: none !important;
+            }
         }
 
         .print-header {
@@ -283,6 +288,9 @@ try {
                                     <th class="text-center text-primary fw-bold">Apprv. OT</th>
                                     <th class="text-center">Total Hrs</th>
                                     <th class="text-end pe-4">Estimated Gross Pay</th>
+                                    <?php if ($canGeneratePayroll): ?>
+                                        <th class="text-center pe-4 action-col">Action</th>
+                                    <?php endif; ?>
                                 </tr>
                             </thead>
                             <tbody>
@@ -322,15 +330,26 @@ try {
                                             <td class="text-center fw-bold fs-5 text-dark"><?= number_format($data['total_hours'], 2) ?></td>
 
                                             <td class="text-end pe-4 fw-bold text-success fs-5">₱<?= number_format($data['est_gross'], 2) ?></td>
+
+                                            <?php if ($canGeneratePayroll): ?>
+                                                <td class="text-center pe-4 action-col">
+                                                    <a href="../payroll/payroll_module.php?auto_gen=1&start=<?= $startDate ?>&end=<?= $endDate ?>&emp_id=<?= $empId ?>" class="btn btn-sm btn-success fw-bold shadow-sm" title="Generate Payroll for <?= htmlspecialchars($data['name']) ?>">
+                                                        <i class="bi bi-gear-wide-connected me-1"></i> Generate
+                                                    </a>
+                                                </td>
+                                            <?php endif; ?>
                                         </tr>
                                     <?php endforeach; ?>
                                     <tr class="table-dark text-white fw-bold">
                                         <td colspan="7" class="text-end ps-4">GRAND TOTAL ESTIMATED PAYOUT:</td>
                                         <td class="text-end pe-4 fs-5 text-warning">₱<?= number_format($grandTotalPay, 2) ?></td>
+                                        <?php if ($canGeneratePayroll): ?>
+                                            <td class="action-col"></td>
+                                        <?php endif; ?>
                                     </tr>
                                 <?php else: ?>
                                     <tr>
-                                        <td colspan="8" class="text-center py-5 text-muted">
+                                        <td colspan="<?= $canGeneratePayroll ? '9' : '8' ?>" class="text-center py-5 text-muted">
                                             <i class="bi bi-file-earmark-x display-6 d-block mb-3 opacity-25"></i>
                                             No attendance records found for this date range.
                                         </td>

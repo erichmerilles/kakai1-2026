@@ -2,6 +2,7 @@
 session_start();
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../frontend/includes/auth_check.php';
+require_once __DIR__ . '/../utils/logger.php';
 
 header('Content-Type: application/json');
 
@@ -52,6 +53,10 @@ try {
   }
 
   $pdo->commit();
+
+  // log activity
+  logActivity($pdo, $_SESSION['user_id'], 'Update', 'Employee', "Updated details for Employee ID: $empId ($first_name $last_name)");
+
   echo json_encode(['success' => true, 'message' => 'Employee and login ID updated successfully!']);
 } catch (PDOException $e) {
   if ($pdo->inTransaction()) {

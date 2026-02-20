@@ -4,6 +4,7 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../frontend/includes/auth_check.php';
+require_once __DIR__ . '/../utils/logger.php';
 
 // check permissions
 if (!hasPermission('order_create')) {
@@ -60,6 +61,10 @@ try {
   $upd->close();
 
   $conn->commit();
+
+  // log activity
+  logActivity($pdo, $_SESSION['user_id'], 'Create', 'Ordering', "Created new order #$order_id for ₱" . number_format($total, 2));
+
   echo json_encode(['success' => true, 'order_id' => $order_id]);
 } catch (Exception $e) {
   $conn->rollback();

@@ -1,10 +1,10 @@
 <?php
-// role validation
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 require_once __DIR__ . '/auth_check.php';
 
+//set active module
 $activeModule = isset($activeModule) ? $activeModule : 'dashboard';
 $currentPage = basename($_SERVER['PHP_SELF']);
 $baseUrl = '/kakai1/frontend';
@@ -139,10 +139,6 @@ $dashboardLink = ($_SESSION['role'] === 'Admin')
                             <i class="bi bi-dot"></i> Timesheet Reports
                         </a>
                     <?php endif; ?>
-
-                    <a href="<?= $baseUrl ?>/requests/cash_advance.php" class="nav-link py-1 sub-link <?= $currentPage == 'cash_advance.php' ? 'active-sub' : '' ?>">
-                        <i class="bi bi-dot"></i> Cash Advances
-                    </a>
                 </div>
             <?php endif; ?>
         <?php endif; ?>
@@ -182,15 +178,36 @@ $dashboardLink = ($_SESSION['role'] === 'Admin')
             <?php endif; ?>
         <?php endif; ?>
 
-        <?php if (hasPermission('payroll_view')): ?>
+        <?php if (hasPermission('payroll_view') || hasPermission('ca_manage')): ?>
             <a href="<?= $baseUrl ?>/payroll/payroll_module.php" class="nav-link <?= $activeModule === 'payroll' ? 'active' : '' ?>">
                 <i class="bi bi-cash-coin me-2 fs-5 align-middle"></i> <span>Payroll</span>
             </a>
+            <?php if ($activeModule === 'payroll'): ?>
+                <div class="sub-menu-container">
+                    <?php if (hasPermission('payroll_view')): ?>
+                        <a href="<?= $baseUrl ?>/payroll/payroll_module.php" class="nav-link py-1 sub-link <?= $currentPage == 'payroll_module.php' ? 'active-sub' : '' ?>">
+                            <i class="bi bi-dot"></i> Generate & History
+                        </a>
+                    <?php endif; ?>
+
+                    <?php if (hasPermission('ca_manage') || hasPermission('ca_view')): ?>
+                        <a href="<?= $baseUrl ?>/requests/cash_advance.php" class="nav-link py-1 sub-link <?= $currentPage == 'cash_advance.php' ? 'active-sub' : '' ?>">
+                            <i class="bi bi-dot"></i> Manage Cash Advances
+                        </a>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
         <?php endif; ?>
 
         <?php if (hasPermission('order_view')): ?>
             <a href="<?= $baseUrl ?>/ordering/ordering_module.php" class="nav-link <?= $activeModule === 'ordering' ? 'active' : '' ?>">
                 <i class="bi bi-cart-check me-2 fs-5 align-middle"></i> <span>Ordering</span>
+            </a>
+        <?php endif; ?>
+
+        <?php if ($_SESSION['role'] === 'Admin'): ?>
+            <a href="<?= $baseUrl ?>/sales/sales_dashboard.php" class="nav-link <?= $activeModule === 'sales' ? 'active' : '' ?>">
+                <i class="bi bi-graph-up-arrow me-2 fs-5 align-middle"></i> <span>Sales</span>
             </a>
         <?php endif; ?>
 
@@ -202,10 +219,18 @@ $dashboardLink = ($_SESSION['role'] === 'Admin')
         <?php endif; ?>
 
         <?php if ($_SESSION['role'] !== 'Admin'): ?>
-            <div class="section-header border-top border-secondary border-opacity-25 pt-3 mt-3">My Tools</div>
+            <div class="section-header border-top border-secondary border-opacity-25 pt-3 mt-3">My Requests</div>
 
-            <a href="<?= $baseUrl ?>/requests/cash_advance.php" class="nav-link <?= $currentPage === 'cash_advance.php' ? 'active' : '' ?>">
-                <i class="bi bi-wallet2 me-2 fs-5 align-middle"></i> <span>Cash Advance</span>
+            <a href="<?= $baseUrl ?>/payroll/my_payslips.php" class="nav-link <?= $currentPage === 'my_payslips.php' ? 'active' : '' ?>">
+                <i class="bi bi-file-earmark-medical me-2 fs-5 align-middle"></i> <span>My Payslips</span>
+            </a>
+
+            <a href="<?= $baseUrl ?>/requests/cash_advance.php" class="nav-link <?= ($currentPage === 'cash_advance.php' || $activeModule === 'requests') ? 'active' : '' ?>">
+                <i class="bi bi-cash-stack me-2 fs-5 align-middle"></i> <span>Request Cash Advance</span>
+            </a>
+
+            <a href="<?= $baseUrl ?>/settings/activity_log.php" class="nav-link <?= $activeModule === 'settings' ? 'active' : '' ?>">
+                <i class="bi bi-card-checklist me-2 fs-5 align-middle"></i> <span>My Activity Log</span>
             </a>
         <?php endif; ?>
 

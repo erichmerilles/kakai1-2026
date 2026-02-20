@@ -2,6 +2,7 @@
 session_start();
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../frontend/includes/auth_check.php';
+require_once __DIR__ . '/../utils/logger.php';
 
 header('Content-Type: application/json');
 
@@ -81,6 +82,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmtPerms->execute([$employee_id]);
 
     $pdo->commit();
+
+    // log activity
+    logActivity($pdo, $_SESSION['user_id'], 'Create', 'Employee', "Added a new employee: $first_name $last_name ($employee_code)");
+
     echo json_encode(['success' => true, 'message' => "Employee created successfully! Assigned ID: $employee_code. Use email to login."]);
   } catch (PDOException $e) {
     $pdo->rollBack();

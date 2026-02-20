@@ -54,11 +54,13 @@ $modules = [
     'Payroll & Cash Advances' => [
         'icon' => 'bi-wallet2',
         'features' => [
-            'payroll_view'     => 'View Payroll History',
-            'payroll_generate' => 'Generate Weekly Payroll',
-            'payslip_print'    => 'Print Employee Payslips',
-            'ca_view'          => 'View Cash Advance Lists',
-            'ca_manage'        => 'Manage & Approve Cash Advances',
+            'payroll_view'       => 'View Payroll History',
+            'payroll_analytics'  => 'View Payroll Analytics & Trends',
+            'payroll_generate'   => 'Generate & Delete Payroll Runs',
+            'payroll_distribute' => 'Distribute Payslips to Employees',
+            'payslip_print'      => 'Print Employee Payslips',
+            //'ca_view'            => 'View Cash Advance Lists',
+            //'ca_manage'          => 'Manage & Approve Cash Advances',
         ]
     ],
     'Inventory Management' => [
@@ -274,6 +276,7 @@ try {
         </main>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         // select all toggle logic
         document.querySelectorAll('.select-all-toggle').forEach(toggle => {
@@ -304,7 +307,6 @@ try {
             });
         });
     </script>
-
 </body>
 
 </html>

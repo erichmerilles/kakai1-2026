@@ -2,6 +2,7 @@
 session_start();
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../frontend/includes/auth_check.php';
+require_once __DIR__ . '/../utils/logger.php';
 
 header('Content-Type: application/json');
 
@@ -55,6 +56,9 @@ try {
     );
 
     if ($stmt->execute()) {
+        // log activity
+        logActivity($pdo, $_SESSION['user_id'], 'Create', 'Inventory', "Added new inventory item: $item_name (Qty: $quantity)");
+
         echo json_encode(["success" => true, "message" => "Item added successfully"]);
     } else {
         echo json_encode(["success" => false, "message" => "Insert failed: " . $stmt->error]);

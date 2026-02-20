@@ -18,88 +18,96 @@ $role = $_SESSION['role'];
 $hour = date('H');
 $greeting = ($hour < 12) ? 'Good morning' : (($hour < 18) ? 'Good afternoon' : 'Good evening');
 
-// fetch dashboard stats
+// fetch dashboard stats using PDO
 $dashboardStats = [
   'active_employees' => 0,
-  'pending_leaves' => 0,
+  'pending_overtimes' => 0,
   'low_stock' => 0
 ];
 
-if (isset($conn)) {
+try {
   // total active employees
-  $res = $conn->query("SELECT COUNT(*) as count FROM employees WHERE status = 'Active'");
-  if ($res) $dashboardStats['active_employees'] = $res->fetch_assoc()['count'];
+  $stmt = $pdo->query("SELECT COUNT(*) FROM employees WHERE status = 'Active'");
+  $dashboardStats['active_employees'] = $stmt->fetchColumn() ?: 0;
 
-  // pending leave requests
-  $res = $conn->query("SELECT COUNT(*) as count FROM leave_requests WHERE status = 'Pending'");
-  if ($res) $dashboardStats['pending_leaves'] = $res->fetch_assoc()['count'];
+  // pending overtime requests (Attendance requiring approval)
+  $stmt = $pdo->query("SELECT COUNT(*) FROM attendance WHERE status = 'Pending Approval' OR pending_overtime > 0");
+  $dashboardStats['pending_overtimes'] = $stmt->fetchColumn() ?: 0;
 
   // low stock items
-  $res = $conn->query("SELECT COUNT(*) as count FROM inventory WHERE quantity <= reorder_level");
-  if ($res) $dashboardStats['low_stock'] = $res->fetch_assoc()['count'];
+  $stmt = $pdo->query("SELECT COUNT(*) FROM inventory WHERE quantity <= reorder_level");
+  $dashboardStats['low_stock'] = $stmt->fetchColumn() ?: 0;
+} catch (PDOException $e) {
+  // Handle error silently for UI
 }
 
 // employee directory
 $employees = [];
-if (isset($conn)) {
-  $employeeQuery = $conn->query("
+try {
+  $stmt = $pdo->query("
         SELECT u.user_id, u.employee_id, u.username, u.role, u.status, u.created_at, e.first_name, e.last_name 
         FROM users u
         LEFT JOIN employees e ON u.employee_id = e.employee_id
         WHERE u.role = 'Employee'
     ");
-  $employees = $employeeQuery ? $employeeQuery->fetch_all(MYSQLI_ASSOC) : [];
+  $employees = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
 }
 
-// attendance approval requests
+// attendance approval requests (OVERTIME)
 $attendanceRequests = [];
-if (isset($conn)) {
-  $requestQuery = $conn->query("
-        SELECT a.attendance_id, u.username AS name, a.status, a.created_at
+try {
+  $stmt = $pdo->query("
+        SELECT a.attendance_id, CONCAT(e.first_name, ' ', e.last_name) AS name, a.status, a.time_out, a.pending_overtime
         FROM attendance a
-        JOIN users u ON u.employee_id = a.employee_id
-        WHERE a.status = 'Pending Approval' OR a.status = 'Pending'
-        ORDER BY a.created_at DESC
+        JOIN employees e ON a.employee_id = e.employee_id
+        WHERE a.status = 'Pending Approval' OR a.pending_overtime > 0
+        ORDER BY a.time_out DESC
     ");
-  $attendanceRequests = $requestQuery ? $requestQuery->fetch_all(MYSQLI_ASSOC) : [];
+  $attendanceRequests = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
 }
 
 // notifications
 $notifications = [];
-
-if (isset($conn)) {
-  // employees that are not logged in
-  $notClockedQuery = $conn->query("
+try {
+  // employees that are not logged in today
+  $stmt = $pdo->query("
         SELECT username 
         FROM users 
         WHERE role = 'employee' 
         AND employee_id NOT IN (
-            SELECT employee_id FROM attendance WHERE DATE(created_at) = CURDATE()
+            SELECT employee_id FROM attendance WHERE DATE(time_in) = CURDATE()
         )
     ");
-  if ($notClockedQuery && $notClockedQuery->num_rows > 0) {
+  $notClocked = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+  if (count($notClocked) > 0) {
     $notifications[] = [
       'icon' => 'bi-person-x',
       'color' => 'text-warning',
-      'msg' => "{$notClockedQuery->num_rows} employee(s) have not clocked in today."
+      'msg' => count($notClocked) . " employee(s) have not clocked in today."
     ];
   }
 
   // ongoing shifts
-  $ongoingQuery = $conn->query("
+  $stmt = $pdo->query("
         SELECT username 
         FROM users 
         WHERE employee_id IN (
-            SELECT employee_id FROM attendance WHERE DATE(created_at) = CURDATE() AND time_out IS NULL
+            SELECT employee_id FROM attendance WHERE DATE(time_in) = CURDATE() AND time_out IS NULL
         )
     ");
-  if ($ongoingQuery && $ongoingQuery->num_rows > 0) {
+  $ongoing = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+  if (count($ongoing) > 0) {
     $notifications[] = [
       'icon' => 'bi-clock-history',
       'color' => 'text-primary',
-      'msg' => "{$ongoingQuery->num_rows} employee(s) have ongoing shifts."
+      'msg' => count($ongoing) . " employee(s) have ongoing shifts."
     ];
   }
+} catch (PDOException $e) {
 }
 
 if (empty($notifications)) {
@@ -206,10 +214,10 @@ if (empty($notifications)) {
               <div class="card-body">
                 <div class="row no-gutters align-items-center">
                   <div class="col mr-2">
-                    <div class="text-xs fw-bold text-warning text-uppercase mb-1">Pending Leaves</div>
-                    <div class="h4 mb-0 fw-bold text-dark"><?= $dashboardStats['pending_leaves']; ?></div>
+                    <div class="text-xs fw-bold text-warning text-uppercase mb-1">Pending Overtimes</div>
+                    <div class="h4 mb-0 fw-bold text-dark"><?= $dashboardStats['pending_overtimes']; ?></div>
                   </div>
-                  <div class="col-auto"><i class="bi bi-calendar-event fa-2x text-warning opacity-50 fs-1"></i></div>
+                  <div class="col-auto"><i class="bi bi-clock-history fa-2x text-warning opacity-50 fs-1"></i></div>
                 </div>
               </div>
             </div>
@@ -247,9 +255,9 @@ if (empty($notifications)) {
         <div class="row">
           <div class="col-lg-8">
 
-            <div class="card mb-4 shadow-sm">
-              <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-people-fill me-2"></i>Employee Directory</span>
+            <div class="card mb-4 shadow-sm border-0">
+              <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-3">
+                <span class="fw-bold"><i class="bi bi-people-fill me-2"></i>Employee Directory</span>
                 <div class="input-group input-group-sm w-50">
                   <input type="text" id="employeeSearch" class="form-control" placeholder="Search employees...">
                   <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
@@ -257,20 +265,20 @@ if (empty($notifications)) {
               </div>
               <div class="card-body p-0">
                 <div class="table-responsive">
-                  <table class="table table-striped align-middle mb-0" id="employeeTable">
+                  <table class="table table-striped table-hover align-middle mb-0" id="employeeTable">
                     <thead class="table-light">
                       <tr>
-                        <th class="ps-3"><i class="bi bi-person-circle"></i> Full Name</th>
+                        <th class="ps-4"><i class="bi bi-person-circle"></i> Full Name</th>
                         <th><i class="bi bi-briefcase"></i> Role</th>
                         <th><i class="bi bi-activity"></i> Status</th>
-                        <th class="pe-3"><i class="bi bi-calendar-event"></i> Created</th>
+                        <th class="pe-4"><i class="bi bi-calendar-event"></i> Created</th>
                       </tr>
                     </thead>
                     <tbody>
                       <?php if (!empty($employees)): ?>
                         <?php foreach ($employees as $emp): ?>
                           <tr>
-                            <td class="ps-3 fw-bold text-dark">
+                            <td class="ps-4 fw-bold text-dark">
                               <?= htmlspecialchars(trim($emp['first_name'] . ' ' . $emp['last_name'])) ?: htmlspecialchars($emp['username']); ?>
                             </td>
                             <td><?= htmlspecialchars($emp['role']); ?></td>
@@ -279,12 +287,13 @@ if (empty($notifications)) {
                                 <?= ucfirst($emp['status']); ?>
                               </span>
                             </td>
-                            <td class="text-muted small pe-3"><?= date('M d, Y', strtotime($emp['created_at'])); ?></td>
+                            <td class="text-muted small pe-4"><?= date('M d, Y', strtotime($emp['created_at'])); ?></td>
                           </tr>
                         <?php endforeach; ?>
                       <?php else: ?>
                         <tr>
-                          <td colspan="4" class="text-center py-4 text-muted">
+                          <td colspan="4" class="text-center py-5 text-muted">
+                            <i class="bi bi-people display-6 d-block mb-2 opacity-25"></i>
                             No employees found.
                           </td>
                         </tr>
@@ -295,38 +304,48 @@ if (empty($notifications)) {
               </div>
             </div>
 
-            <div class="card mb-4 shadow-sm">
-              <div class="card-header bg-dark text-white">
-                <i class="bi bi-envelope-paper me-2 text-warning"></i>Pending Approvals
+            <div class="card mb-4 shadow-sm border-warning">
+              <div class="card-header bg-warning text-dark py-3">
+                <i class="bi bi-clock-history me-2"></i><strong>Pending Overtimes & Approvals</strong>
               </div>
               <div class="card-body p-0">
                 <div class="table-responsive">
                   <table class="table table-striped align-middle mb-0">
                     <thead class="table-light">
                       <tr>
-                        <th class="ps-3">Employee Name</th>
+                        <th class="ps-4">Employee Name</th>
                         <th>Request Type</th>
-                        <th>Date Submitted</th>
-                        <th class="text-end pe-3">Action</th>
+                        <th>Shift Ended At</th>
+                        <th class="text-end pe-4">Action</th>
                       </tr>
                     </thead>
                     <tbody>
                       <?php if (!empty($attendanceRequests)): ?>
                         <?php foreach ($attendanceRequests as $req): ?>
                           <tr>
-                            <td class="ps-3 fw-bold"><?= htmlspecialchars($req['name']); ?></td>
-                            <td><span class="badge bg-warning text-dark">Attendance</span></td>
-                            <td class="text-muted small"><?= htmlspecialchars(date('Y-m-d H:i', strtotime($req['created_at']))); ?></td>
-                            <td class="text-end pe-3">
-                              <button class="btn btn-sm btn-success" title="Approve"><i class="bi bi-check-circle"></i> Approve</button>
-                              <button class="btn btn-sm btn-danger" title="Decline"><i class="bi bi-x-circle"></i> Decline</button>
+                            <td class="ps-4 fw-bold text-dark"><?= htmlspecialchars($req['name']); ?></td>
+                            <td>
+                              <?php if ($req['pending_overtime'] > 0): ?>
+                                <span class="badge bg-danger">Overtime (<?= number_format($req['pending_overtime'], 1) ?> hrs)</span>
+                              <?php else: ?>
+                                <span class="badge bg-warning text-dark">Time Out Review</span>
+                              <?php endif; ?>
+                            </td>
+                            <td class="text-muted small">
+                              <?= !empty($req['time_out']) ? date('M d, Y - h:i A', strtotime($req['time_out'])) : '<span class="text-danger fst-italic">Missing Time Out</span>' ?>
+                            </td>
+                            <td class="text-end pe-4">
+                              <a href="../attendance/attendance_page.php<?= !empty($req['time_out']) ? '?date=' . date('Y-m-d', strtotime($req['time_out'])) : '' ?>" class="btn btn-sm btn-primary shadow-sm" title="Review Request">
+                                <i class="bi bi-eye"></i> Review
+                              </a>
                             </td>
                           </tr>
                         <?php endforeach; ?>
                       <?php else: ?>
                         <tr>
-                          <td colspan="4" class="text-center py-4 text-muted">
-                            All caught up! No pending requests.
+                          <td colspan="4" class="text-center py-5 text-muted">
+                            <i class="bi bi-check-circle display-6 d-block mb-2 text-success opacity-50"></i>
+                            All caught up! No pending overtime requests.
                           </td>
                         </tr>
                       <?php endif; ?>
@@ -339,9 +358,9 @@ if (empty($notifications)) {
           </div>
 
           <div class="col-lg-4 mt-4 mt-lg-0">
-            <div class="card mb-4 shadow-sm">
-              <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-bell-fill me-2 text-info"></i>Activity Feed</span>
+            <div class="card mb-4 shadow-sm border-0">
+              <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-3">
+                <span class="fw-bold"><i class="bi bi-bell-fill me-2 text-info"></i>Activity Feed</span>
                 <span class="badge bg-danger rounded-pill"><?= count($notifications) ?></span>
               </div>
               <div class="card-body p-0">
@@ -352,7 +371,6 @@ if (empty($notifications)) {
                       <div>
                         <h6 class="mb-1 fw-bold text-dark text-sm">System Update</h6>
                         <p class="mb-0 text-muted small"><?= htmlspecialchars($note['msg']); ?></p>
-                        <!--<small class="text-muted" style="font-size: 0.7rem;">Just now</small>-->
                       </div>
                     </li>
                   <?php endforeach; ?>
