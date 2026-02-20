@@ -1,13 +1,10 @@
 <?php
-session_start();
 header('Content-Type: application/json');
-
 require_once __DIR__ . '/../../config/db.php';
-require_once __DIR__ . '/../../frontend/includes/auth_check.php';
+session_start();
 
-// check permissions
-if (!hasPermission('payroll_generate')) {
-  echo json_encode(['success' => false, 'message' => 'Unauthorized: You do not have permission to generate payroll.']);
+if (!isset($_SESSION['user_id'])) {
+  echo json_encode(['success'=>false,'message'=>'Not authenticated']);
   exit;
 }
 
@@ -17,7 +14,7 @@ $start = $input['start_date'] ?? null;
 $end   = $input['end_date'] ?? null;
 
 if (!$start || !$end) {
-  echo json_encode(['success' => false, 'message' => 'Provide start_date and end_date (YYYY-MM-DD)']);
+  echo json_encode(['success'=>false,'message'=>'Provide start_date and end_date (YYYY-MM-DD)']);
   exit;
 }
 
@@ -27,9 +24,9 @@ $end_date   = date('Y-m-d', strtotime($end));
 $created_by = $_SESSION['user_id'];
 
 // payroll rules constants
-define('WKDAY_MAX_HOURS', 11);
+define('WKDAY_MAX_HOURS', 11);    // Mon-Sat
 define('WKDAY_FULL_PAY', 700.00);
-define('SUN_MAX_HOURS', 10);
+define('SUN_MAX_HOURS', 10);      // Sunday
 define('SUN_FULL_PAY', 800.00);
 
 $conn->begin_transaction();
@@ -42,7 +39,7 @@ try {
   $payroll_id = $stmt->insert_id;
   $stmt->close();
 
-  // fetch employees
+  // fetch employees (all active employees; adapt query if you want subset)
   $empQ = $conn->query("SELECT employee_id FROM employees WHERE 1");
   $employees = $empQ ? $empQ->fetch_all(MYSQLI_ASSOC) : [];
 
@@ -54,13 +51,13 @@ try {
     $empId = (int)$e['employee_id'];
     // fetch attendance rows for employee within date range where time_in/time_out exist
     $attStmt = $conn->prepare("
-            SELECT DATE(created_at) as day, time_in, time_out
-            FROM attendance
-            WHERE employee_id = ? 
-              AND DATE(created_at) BETWEEN ? AND ?
-              AND time_in IS NOT NULL
-              AND time_out IS NOT NULL
-        ");
+      SELECT DATE(created_at) as day, time_in, time_out
+      FROM attendance
+      WHERE employee_id = ? 
+        AND DATE(created_at) BETWEEN ? AND ?
+        AND time_in IS NOT NULL
+        AND time_out IS NOT NULL
+    ");
     $attStmt->bind_param('iss', $empId, $start_date, $end_date);
     $attStmt->execute();
     $res = $attStmt->get_result();
@@ -70,26 +67,26 @@ try {
     $gross_pay = 0.0;
     $details = [];
 
-    // group by day
+    // group by day (attendance table likely stores one row per record; if multiple per day adjust)
     foreach ($attRows as $row) {
       $day = $row['day'];
-      // compute hours between time_in and time_out
+      // compute hours between time_in/time_out
       $timeIn = strtotime($row['time_in']);
       $timeOut = strtotime($row['time_out']);
       if (!$timeIn || !$timeOut || $timeOut <= $timeIn) {
-        continue;
+        continue; // ignore invalid
       }
 
       $hours = ($timeOut - $timeIn) / 3600.0;
-      // determine date of the week
+      // determine weekday: 0=Sun..6=Sat via PHP's date('w')
       $w = date('w', strtotime($day));
 
       if ($w == 0) {
-        // sunday
+        // Sunday
         $max = SUN_MAX_HOURS;
         $fullPay = SUN_FULL_PAY;
       } else {
-        // mon-sat
+        // Mon-Sat
         $max = WKDAY_MAX_HOURS;
         $fullPay = WKDAY_FULL_PAY;
       }
@@ -99,10 +96,12 @@ try {
         $dayPay = $fullPay;
         $usedHours = $max;
       } else {
+        // fractional pay
         $dayPay = ($hours / $max) * $fullPay;
         $usedHours = $hours;
       }
 
+      // round to 2 decimals
       $dayPay = round($dayPay, 2);
       $gross_pay += $dayPay;
 
@@ -134,9 +133,9 @@ try {
 
     // insert payroll entry
     $ins = $conn->prepare("
-            INSERT INTO payroll_entries (payroll_id, employee_id, gross_pay, cash_advance, net_pay, details)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ");
+      INSERT INTO payroll_entries (payroll_id, employee_id, gross_pay, cash_advance, net_pay, details)
+      VALUES (?, ?, ?, ?, ?, ?)
+    ");
     $details_json = json_encode($details);
     $ins->bind_param('iiddds', $payroll_id, $empId, $gross_pay, $cash_total, $net, $details_json);
     $ins->execute();
@@ -161,8 +160,10 @@ try {
 
   $conn->commit();
 
-  echo json_encode(['success' => true, 'message' => 'Payroll generated', 'payroll_id' => $payroll_id]);
+  echo json_encode(['success'=>true, 'message'=>'Payroll generated', 'payroll_id'=>$payroll_id]);
+
 } catch (Exception $ex) {
   $conn->rollback();
-  echo json_encode(['success' => false, 'message' => 'Error: ' . $ex->getMessage()]);
+  echo json_encode(['success'=>false,'message'=>'Error: '.$ex->getMessage()]);
 }
+?>

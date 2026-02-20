@@ -196,8 +196,8 @@ $dashboardLink = ($_SESSION['role'] === 'Admin')
 
         <?php if ($_SESSION['role'] === 'Admin'): ?>
             <div class="section-header border-top border-secondary border-opacity-25 pt-3 mt-3">System & Security</div>
-            <a href="<?= $baseUrl ?>/settings/audit_log.php" class="nav-link <?= $activeModule === 'settings' ? 'active' : '' ?>">
-                <i class="bi bi-shield-check me-2 fs-5 align-middle"></i> <span>Audit Trail</span>
+            <a href="<?= $baseUrl ?>/settings/activity_log.php" class="nav-link <?= $activeModule === 'settings' ? 'active' : '' ?>">
+                <i class="bi bi-shield-check me-2 fs-5 align-middle"></i> <span>Activity log</span>
             </a>
         <?php endif; ?>
 

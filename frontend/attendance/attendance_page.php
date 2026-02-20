@@ -445,7 +445,7 @@ try {
                 <form id="manualLogForm">
                     <div class="modal-body p-4">
                         <div class="alert alert-info py-2 small mb-4">
-                            <i class="bi bi-info-circle-fill me-2"></i>Use this to input attendance if the internet was down or an employee forgot to clock in.
+                            <i class="bi bi-info-circle-fill me-2"></i>Use this to manually log attendance if an employee forgot to clock in.
                         </div>
 
                         <div class="mb-3">

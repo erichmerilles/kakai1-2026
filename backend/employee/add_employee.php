@@ -7,12 +7,11 @@ header('Content-Type: application/json');
 
 // check permissions
 if (!hasPermission('emp_add')) {
-  echo json_encode(['success' => false, 'message' => 'Unauthorized: You do not have permission to add employees.']);
+  echo json_encode(['success' => false, 'message' => 'Unauthorized']);
   exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  // retrieve and sanitize input
   $first_name = trim($_POST['first_name'] ?? '');
   $last_name  = trim($_POST['last_name'] ?? '');
   $email      = trim($_POST['email'] ?? '');
@@ -23,11 +22,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $date_hired = $_POST['date_hired'] ?? date('Y-m-d');
   $password   = $_POST['password'] ?? '';
 
-  $role = 'Employee';
-  $username = trim($first_name . ' ' . $last_name);
-
-  if (empty($first_name) || empty($last_name) || empty($password)) {
-    echo json_encode(['success' => false, 'message' => 'First Name, Last Name, and Password are required.']);
+  if (empty($first_name) || empty($last_name) || empty($email) || empty($password)) {
+    echo json_encode(['success' => false, 'message' => 'First Name, Last Name, Email, and Password are required.']);
     exit;
   }
 
@@ -52,11 +48,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $daily_rate,
       $status,
       $date_hired,
-      $role,
+      'Employee',
       $hashedPassword
     ]);
 
+    // get the generated ID
     $employee_id = $pdo->lastInsertId();
+
+    // generate and update employee code
+    $employee_code = "EMP-" . str_pad($employee_id, 4, "0", STR_PAD_LEFT);
+
+    $stmtUpdateCode = $pdo->prepare("UPDATE employees SET employee_code = ? WHERE employee_id = ?");
+    $stmtUpdateCode->execute([$employee_code, $employee_id]);
 
     // insert into users table
     $stmtUser = $pdo->prepare("
@@ -67,22 +70,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $stmtUser->execute([
       $employee_id,
-      $username,
+      $email,
       $hashedPassword,
-      $role,
+      'Employee',
       $status
     ]);
 
-    // initialize default permissions
+    // initialize permissions for the new employee
     $stmtPerms = $pdo->prepare("INSERT INTO employee_permissions (employee_id) VALUES (?)");
     $stmtPerms->execute([$employee_id]);
 
     $pdo->commit();
-    echo json_encode(['success' => true, 'message' => 'Employee and User Account created successfully!']);
+    echo json_encode(['success' => true, 'message' => "Employee created successfully! Assigned ID: $employee_code. Use email to login."]);
   } catch (PDOException $e) {
     $pdo->rollBack();
-    echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
+    if ($e->getCode() == 23000) {
+      echo json_encode(['success' => false, 'message' => 'Error: Email already exists.']);
+    } else {
+      echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
+    }
   }
-} else {
-  echo json_encode(['success' => false, 'message' => 'Invalid request method.']);
 }

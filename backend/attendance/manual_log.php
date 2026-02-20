@@ -1,57 +1,78 @@
 <?php
 session_start();
-date_default_timezone_set('Asia/Manila');
-
+header('Content-Type: application/json');
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../frontend/includes/auth_check.php';
 
-header('Content-Type: application/json');
-
 // check permissions
 if (!hasPermission('att_approve')) {
-    echo json_encode(['success' => false, 'message' => 'Unauthorized: You do not have permission to add manual logs.']);
+    echo json_encode(['success' => false, 'message' => 'Unauthorized: Admin access required.']);
     exit;
 }
 
-$employee_id = $_POST['employee_id'] ?? null;
-$time_in = $_POST['time_in'] ?? null;
-$time_out = $_POST['time_out'] ?? null;
-$manual_status = $_POST['status'] ?? 'Present';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $empId   = intval($_POST['employee_id'] ?? 0);
+    $timeIn  = $_POST['time_in'] ?? null;
+    $timeOut = $_POST['time_out'] ?? null;
+    $status  = $_POST['status'] ?? 'Present';
 
-if (!$employee_id || !$time_in) {
-    echo json_encode(['success' => false, 'message' => 'Employee and Time In are required.']);
-    exit;
-}
-
-try {
-    $timeInParsed = strtotime($time_in);
-    $timeInHourMinute = date('H:i', $timeInParsed);
-
-    // auto determine status based on time_in
-    $status = ($timeInHourMinute > '07:00') ? 'Late' : 'Present';
-
-    $totalHours = 0;
-    $finalTimeOut = null;
-
-    if (!empty($time_out)) {
-        $t2 = strtotime($time_out);
-        if ($t2 > $timeInParsed) {
-            $diff = $t2 - $timeInParsed;
-            $totalHours = round($diff / 3600, 2);
-            $finalTimeOut = $time_out;
-        } else {
-            echo json_encode(['success' => false, 'message' => 'Time Out cannot be before Time In.']);
-            exit;
-        }
+    if (!$empId || !$timeIn) {
+        echo json_encode(['success' => false, 'message' => 'Employee and Time In are required.']);
+        exit;
     }
 
-    $stmt = $pdo->prepare("
-        INSERT INTO attendance (employee_id, time_in, time_out, status, total_hours, created_at) 
-        VALUES (?, ?, ?, ?, ?, NOW())
-    ");
-    $stmt->execute([$employee_id, $time_in, $finalTimeOut, $status, $totalHours]);
+    // timestamps comparison
+    $startTs = strtotime($timeIn);
+    $dateOnly = date('Y-m-d', $startTs);
 
-    echo json_encode(['success' => true, 'message' => 'Manual attendance log saved successfully.']);
-} catch (PDOException $e) {
-    echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
+    try {
+        // look for duplicate record 
+        $checkStmt = $pdo->prepare("SELECT attendance_id FROM attendance WHERE employee_id = ? AND DATE(time_in) = ?");
+        $checkStmt->execute([$empId, $dateOnly]);
+
+        if ($checkStmt->fetch()) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Action Blocked: This employee already has an attendance record for ' . date('M d, Y', $startTs) . '. Please edit the existing record instead.'
+            ]);
+            exit;
+        }
+
+        // time out logic
+        $totalHours = 0;
+        if (!empty($timeOut)) {
+            $endTs = strtotime($timeOut);
+
+            if ($endTs <= $startTs) {
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Invalid Logic: Time Out cannot be earlier than or equal to Time In.'
+                ]);
+                exit;
+            }
+
+            // calculate total hours
+            $totalHours = ($endTs - $startTs) / 3600;
+        }
+
+        // insert attendance record
+        $insStmt = $pdo->prepare("
+            INSERT INTO attendance (employee_id, time_in, time_out, status, total_hours, created_at) 
+            VALUES (?, ?, ?, ?, ?, NOW())
+        ");
+
+        $insStmt->execute([
+            $empId,
+            $timeIn,
+            !empty($timeOut) ? $timeOut : null,
+            $status,
+            $totalHours
+        ]);
+
+        echo json_encode(['success' => true, 'message' => 'Manual attendance log recorded successfully.']);
+    } catch (PDOException $e) {
+        echo json_encode(['success' => false, 'message' => 'Database Error: ' . $e->getMessage()]);
+    }
+} else {
+    echo json_encode(['success' => false, 'message' => 'Invalid request method.']);
 }

@@ -11,14 +11,14 @@ if (!hasPermission('emp_edit')) {
   exit;
 }
 
-// get employee ID from POST data
+// get employee ID
 $empId = $_POST['employee_id'] ?? null;
-
 if (!$empId) {
   echo json_encode(['success' => false, 'message' => 'Employee ID is missing.']);
   exit;
 }
 
+// extract and sanitize input
 $first_name = trim($_POST['first_name'] ?? '');
 $last_name  = trim($_POST['last_name'] ?? '');
 $email      = trim($_POST['email'] ?? '');
@@ -27,9 +27,8 @@ $position   = trim($_POST['position'] ?? '');
 $daily_rate = floatval($_POST['daily_rate'] ?? 0);
 $status     = trim($_POST['status'] ?? 'Active');
 $date_hired = $_POST['date_hired'] ?? null;
-$role       = trim($_POST['role'] ?? 'Employee');
 
-// handle optional password update
+// hanlde optional password update
 $newPassword = !empty($_POST['password']) ? password_hash($_POST['password'], PASSWORD_DEFAULT) : null;
 
 try {
@@ -38,28 +37,31 @@ try {
   // update employees table
   $stmtEmp = $pdo->prepare("
         UPDATE employees
-        SET first_name=?, last_name=?, email=?, contact_number=?, position=?, daily_rate=?, status=?, date_hired=?
-        WHERE employee_id=?
+        SET first_name = ?, last_name = ?, email = ?, contact_number = ?, position = ?, daily_rate = ?, status = ?, date_hired = ?
+        WHERE employee_id = ?
     ");
   $stmtEmp->execute([$first_name, $last_name, $email, $contact, $position, $daily_rate, $status, $date_hired, $empId]);
 
   // update users table
   if ($newPassword) {
-    // update status and password
-    $stmtUser = $pdo->prepare("UPDATE users SET status=?, password=? WHERE employee_id=?");
-    $stmtUser->execute([$status, $newPassword, $empId]);
+    $stmtUser = $pdo->prepare("UPDATE users SET username = ?, status = ?, password = ? WHERE employee_id = ?");
+    $stmtUser->execute([$email, $status, $newPassword, $empId]);
   } else {
-    // update status
-    $stmtUser = $pdo->prepare("UPDATE users SET status=? WHERE employee_id=?");
-    $stmtUser->execute([$status, $empId]);
+    $stmtUser = $pdo->prepare("UPDATE users SET username = ?, status = ? WHERE employee_id = ?");
+    $stmtUser->execute([$email, $status, $empId]);
   }
 
-  // commit transaction
   $pdo->commit();
+  echo json_encode(['success' => true, 'message' => 'Employee and login ID updated successfully!']);
+} catch (PDOException $e) {
+  if ($pdo->inTransaction()) {
+    $pdo->rollBack();
+  }
 
-  // return success response
-  echo json_encode(['success' => true, 'message' => 'Employee updated successfully!']);
-} catch (Exception $e) {
-  $pdo->rollBack();
-  echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
+  // check for duplicate entry
+  if ($e->getCode() == 23000 || $e->errorInfo[1] == 1062) {
+    echo json_encode(['success' => false, 'message' => 'Error: This email is already used by another account.']);
+  } else {
+    echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
+  }
 }

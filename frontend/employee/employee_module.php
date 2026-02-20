@@ -3,21 +3,21 @@ session_start();
 date_default_timezone_set('Asia/Manila');
 
 require_once __DIR__ . '/../../config/db.php';
-require_once __DIR__ . '/../includes/auth_check.php'; // Included ACL Helper
+require_once __DIR__ . '/../includes/auth_check.php';
 
 // set active module
 $activeModule = 'employee';
 
-// role validation - Replaced hardcoded Admin check with granular permission
+// role validation
 requirePermission('emp_view');
 
 // fetch employees
 try {
     $stmt = $pdo->prepare("
-        SELECT employee_id, first_name, last_name, position, status, date_hired, contact_number, email
+        SELECT employee_id, employee_code, first_name, last_name, position, status, date_hired, contact_number, email
         FROM employees 
         WHERE role = 'Employee' 
-        ORDER BY date_hired DESC
+        ORDER BY employee_id DESC
     ");
     $stmt->execute();
     $employees = $stmt->fetchAll();
@@ -54,7 +54,6 @@ try {
 
     foreach ($dailyRecords as $record) {
         if (empty($record['attendance_id'])) {
-            // no attendance record means absent
             $attendanceStats['absent']++;
         } else {
             $status = strtolower($record['status']);
@@ -227,13 +226,12 @@ $pendingOTCount = count($pendingOTRequests);
                 </div>
 
                 <div class="row">
-
                     <div class="col-lg-8">
                         <div class="card mb-4 shadow-sm border-0">
                             <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-3">
                                 <span class="fw-bold"><i class="bi bi-list-ul me-2"></i>Employee Directory</span>
                                 <div class="input-group input-group-sm w-50">
-                                    <input type="text" id="employeeSearch" class="form-control" placeholder="Search employees...">
+                                    <input type="text" id="employeeSearch" class="form-control" placeholder="Search code, name, position...">
                                     <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
                                 </div>
                             </div>
@@ -242,21 +240,23 @@ $pendingOTCount = count($pendingOTRequests);
                                     <table class="table table-striped align-middle mb-0" id="employeeTable">
                                         <thead class="table-light">
                                             <tr>
-                                                <th class="ps-4"><i class="bi bi-person-circle"></i> Full Name</th>
-                                                <th><i class="bi bi-briefcase"></i> Position</th>
-                                                <th><i class="bi bi-telephone"></i> Contact #</th>
-                                                <th><i class="bi bi-activity"></i> Status</th>
-                                                <th><i class="bi bi-calendar-event"></i> Date Hired</th>
-                                                <th class="text-end pe-4"><i class="bi bi-gear"></i> Action</th>
+                                                <th class="ps-4">ID Code</th>
+                                                <th>Full Name</th>
+                                                <th>Position</th>
+                                                <th>Status</th>
+                                                <th>Date Hired</th>
+                                                <th class="text-end pe-4">Action</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <?php if (!empty($employees)): ?>
                                                 <?php foreach ($employees as $emp): ?>
                                                     <tr>
-                                                        <td class="ps-4 fw-bold text-dark"><?= htmlspecialchars($emp['first_name'] . ' ' . $emp['last_name']); ?></td>
+                                                        <td class="ps-4">
+                                                            <span class="badge bg-light text-dark border fw-bold"><?= htmlspecialchars($emp['employee_code'] ?? 'N/A'); ?></span>
+                                                        </td>
+                                                        <td class="fw-bold text-dark"><?= htmlspecialchars($emp['first_name'] . ' ' . $emp['last_name']); ?></td>
                                                         <td><?= htmlspecialchars($emp['position']); ?></td>
-                                                        <td class="text-muted small"><?= htmlspecialchars($emp['contact_number'] ?? 'N/A'); ?></td>
                                                         <td>
                                                             <span class="badge bg-<?= (strtolower($emp['status']) === 'active') ? 'success' : 'secondary'; ?>">
                                                                 <?= htmlspecialchars($emp['status']); ?>
@@ -301,7 +301,6 @@ $pendingOTCount = count($pendingOTRequests);
                     </div>
 
                     <div class="col-lg-4 chart-section">
-
                         <div class="card mb-4 shadow-sm border-0">
                             <div class="card-header bg-dark text-white py-3">
                                 <span class="fw-bold"><i class="bi bi-pie-chart-fill me-2"></i>Today's Attendance</span>
@@ -345,7 +344,7 @@ $pendingOTCount = count($pendingOTRequests);
                                                             <strong class="text-danger"><?= number_format($ot['pending_overtime'], 2) ?> hrs excess</strong>
                                                         </div>
                                                     </div>
-                                                    <div class="d-flex flex-column gap-2 pe-1">
+                                                    <div class="pe-1">
                                                         <a href="../attendance/attendance_page.php" class="btn btn-sm btn-outline-primary">Review <i class="bi bi-arrow-right-short"></i></a>
                                                     </div>
                                                 </li>
@@ -360,7 +359,6 @@ $pendingOTCount = count($pendingOTRequests);
                                 </div>
                             </div>
                         <?php endif; ?>
-
                     </div>
                 </div>
 
@@ -435,32 +433,34 @@ $pendingOTCount = count($pendingOTRequests);
                     <h5 class="modal-title fw-bold"><i class="bi bi-person-badge me-2"></i>Employee Details</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body p-4">
-                    <div class="text-center mb-4">
-                        <div class="bg-secondary bg-opacity-25 rounded-circle d-inline-flex align-items-center justify-content-center text-primary mb-2 shadow-sm" style="width: 80px; height: 80px; font-size: 2.5rem;">
-                            <i class="bi bi-person-fill"></i>
-                        </div>
-                        <h4 class="fw-bold mb-0 text-dark" id="view_fullname">Loading...</h4>
-                        <p class="text-muted mb-2" id="view_position">Loading...</p>
-                        <span class="badge bg-success px-3 py-1 rounded-pill" id="view_status">Active</span>
+                <div class="modal-body p-4 text-center">
+                    <div class="bg-secondary bg-opacity-25 rounded-circle d-inline-flex align-items-center justify-content-center text-primary mb-2" style="width: 80px; height: 80px; font-size: 2.5rem;">
+                        <i class="bi bi-person-fill"></i>
                     </div>
+                    <h4 class="fw-bold mb-0 text-dark" id="view_fullname">Loading...</h4>
+                    <p class="text-muted mb-2" id="view_position">Loading...</p>
+                    <div class="mb-3"><span class="badge bg-success px-3 py-1 rounded-pill" id="view_status">Active</span></div>
 
-                    <div class="bg-light rounded p-3 border">
+                    <div class="bg-light rounded p-3 border text-start">
                         <div class="row g-3">
                             <div class="col-6">
-                                <small class="text-muted d-block mb-1">Email</small>
-                                <span class="fw-bold text-dark" id="view_email">-</span>
+                                <small class="text-muted d-block">ID Code</small>
+                                <span class="fw-bold" id="view_code">-</span>
                             </div>
                             <div class="col-6">
-                                <small class="text-muted d-block mb-1">Contact #</small>
-                                <span class="fw-bold text-dark" id="view_contact">-</span>
+                                <small class="text-muted d-block">Contact #</small>
+                                <span class="fw-bold" id="view_contact">-</span>
+                            </div>
+                            <div class="col-12">
+                                <small class="text-muted d-block">Email</small>
+                                <span class="fw-bold" id="view_email">-</span>
                             </div>
                             <div class="col-6">
-                                <small class="text-muted d-block mb-1">Hired</small>
-                                <span class="fw-bold text-dark" id="view_hired">-</span>
+                                <small class="text-muted d-block">Hired</small>
+                                <span class="fw-bold" id="view_hired">-</span>
                             </div>
                             <div class="col-6">
-                                <small class="text-muted d-block mb-1">Rate</small>
+                                <small class="text-muted d-block">Rate</small>
                                 <span class="fw-bold text-success" id="view_rate">-</span>
                             </div>
                         </div>
@@ -536,17 +536,45 @@ $pendingOTCount = count($pendingOTRequests);
     </div>
 
     <script>
+        // chart initialization
+        new Chart(document.getElementById('attendanceChart').getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['On Time', 'Late', 'Absent'],
+                datasets: [{
+                    data: [<?= $attendanceStats['on_time']; ?>, <?= $attendanceStats['late']; ?>, <?= $attendanceStats['absent']; ?>],
+                    backgroundColor: ['#198754', '#ffc107', '#dc3545'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                cutout: '70%',
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+
+        // search filter
+        document.getElementById('employeeSearch').addEventListener('keyup', function() {
+            let filter = this.value.toLowerCase();
+            let rows = document.querySelectorAll('#employeeTable tbody tr');
+            rows.forEach(row => {
+                row.style.display = row.innerText.toLowerCase().includes(filter) ? '' : 'none';
+            });
+        });
+
         // add employee submit
         document.getElementById('addEmployeeForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            const formData = new FormData(this);
             const submitBtn = this.querySelector('button[type="submit"]');
             submitBtn.disabled = true;
-
             try {
                 const res = await fetch('../../backend/employee/add_employee.php', {
                     method: 'POST',
-                    body: formData
+                    body: new FormData(this)
                 });
                 const data = await res.json();
                 if (data.success) {
@@ -561,42 +589,15 @@ $pendingOTCount = count($pendingOTRequests);
                     Swal.fire('Error', data.message, 'error');
                 }
             } catch (err) {
-                Swal.fire('Error', 'Server communication error.', 'error');
+                Swal.fire('Error', 'Server error.', 'error');
             } finally {
                 submitBtn.disabled = false;
             }
         });
 
-        // edit employee submit
-        document.getElementById('editEmployeeForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            try {
-                const res = await fetch('../../backend/employee/update_employee.php', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await res.json();
-                if (data.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Updated!',
-                        text: data.message,
-                        timer: 1500,
-                        showConfirmButton: false
-                    }).then(() => location.reload());
-                } else {
-                    Swal.fire('Error', data.message, 'error');
-                }
-            } catch (err) {
-                Swal.fire('Error', 'Update failed.', 'error');
-            }
-        });
-
         // view employee details
         async function viewEmployee(id) {
-            const modal = new bootstrap.Modal(document.getElementById('viewEmployeeModal'));
-            modal.show();
+            new bootstrap.Modal(document.getElementById('viewEmployeeModal')).show();
             try {
                 const res = await fetch(`../../backend/employee/get_employee.php?id=${id}`);
                 const json = await res.json();
@@ -604,17 +605,21 @@ $pendingOTCount = count($pendingOTRequests);
                     const d = json.data;
                     document.getElementById('view_fullname').innerText = d.first_name + ' ' + d.last_name;
                     document.getElementById('view_position').innerText = d.position;
+                    document.getElementById('view_code').innerText = d.employee_code || 'N/A';
                     document.getElementById('view_email').innerText = d.email || 'N/A';
                     document.getElementById('view_contact').innerText = d.contact_number || 'N/A';
                     document.getElementById('view_hired').innerText = d.date_hired;
                     document.getElementById('view_rate').innerText = '₱' + parseFloat(d.daily_rate).toFixed(2);
+                    const b = document.getElementById('view_status');
+                    b.innerText = d.status;
+                    b.className = `badge rounded-pill px-3 py-1 bg-${d.status.toLowerCase() === 'active' ? 'success' : 'secondary'}`;
                 }
             } catch (e) {
                 console.error(e);
             }
         }
 
-        // load employee data into edit form
+        // edit employee load data
         async function editEmployee(id) {
             try {
                 const res = await fetch(`../../backend/employee/get_employee.php?id=${id}`);
@@ -637,36 +642,32 @@ $pendingOTCount = count($pendingOTRequests);
             }
         }
 
-        // search filter
-        document.getElementById('employeeSearch').addEventListener('keyup', function() {
-            let filter = this.value.toLowerCase();
-            let rows = document.querySelectorAll('#employeeTable tbody tr');
-            rows.forEach(row => {
-                row.style.display = row.innerText.toLowerCase().includes(filter) ? '' : 'none';
-            });
-        });
-
-        // chart
-        new Chart(document.getElementById('attendanceChart').getContext('2d'), {
-            type: 'doughnut',
-            data: {
-                labels: ['On Time', 'Late', 'Absent'],
-                datasets: [{
-                    data: [<?= $attendanceStats['on_time']; ?>, <?= $attendanceStats['late']; ?>, <?= $attendanceStats['absent']; ?>],
-                    backgroundColor: ['#198754', '#ffc107', '#dc3545'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                cutout: '70%',
-                plugins: {
-                    legend: {
-                        display: false
-                    }
+        // edit employee submit
+        document.getElementById('editEmployeeForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            try {
+                const res = await fetch('../../backend/employee/update_employee.php', {
+                    method: 'POST',
+                    body: new FormData(this)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Updated!',
+                        text: data.message,
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => location.reload());
+                } else {
+                    Swal.fire('Error', data.message, 'error');
                 }
+            } catch (err) {
+                Swal.fire('Error', 'Update failed.', 'error');
             }
         });
 
+        // Deactivate
         function confirmDeactivate(id) {
             Swal.fire({
                 title: 'Deactivate?',
