@@ -51,7 +51,7 @@ try {
         $seenEmployees[] = $log['employee_code'];
 
         if (empty($log['attendance_id'])) {
-            // no attendance record
+            // no attendance means absent
             $log['status'] = 'Absent / No Record';
             $dailyStats['absent']++;
         } else {
@@ -67,6 +67,20 @@ try {
     }
 } catch (PDOException $e) {
     $errorMsg = "Error fetching data: " . $e->getMessage();
+}
+
+// fetch pending overtime requests
+try {
+    $stmt = $pdo->query("
+        SELECT a.attendance_id, e.first_name, e.last_name, a.time_in, a.time_out, a.pending_overtime 
+        FROM attendance a
+        JOIN employees e ON a.employee_id = e.employee_id
+        WHERE a.pending_overtime > 0
+        ORDER BY a.time_in ASC
+    ");
+    $pendingOTRequests = $stmt->fetchAll();
+} catch (PDOException $e) {
+    // Handle error
 }
 
 // fetch all active employees for manual log
@@ -120,7 +134,8 @@ try {
             #sidebar,
             .btn,
             .input-group,
-            .filter-form {
+            .filter-form,
+            .action-cols {
                 display: none !important;
             }
 
@@ -225,6 +240,50 @@ try {
                 </div>
             </div>
 
+            <?php if (!empty($pendingOTRequests) && hasPermission('att_approve')): ?>
+                <div class="card shadow-sm border-warning mb-4">
+                    <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center py-3">
+                        <span class="fw-bold"><i class="bi bi-clock-history me-2"></i>Pending Overtime Requests</span>
+                        <span class="badge bg-dark rounded-pill"><?= count($pendingOTRequests) ?> Pending</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-striped align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="ps-4">Employee</th>
+                                        <th>Date</th>
+                                        <th>Time Out (Actual)</th>
+                                        <th class="text-center text-danger fw-bold">Excess Time</th>
+                                        <th class="text-end pe-4 action-cols">Admin Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($pendingOTRequests as $ot): ?>
+                                        <tr>
+                                            <td class="ps-4 fw-bold text-dark"><?= htmlspecialchars($ot['first_name'] . ' ' . $ot['last_name']) ?></td>
+                                            <td><?= date('M d, Y', strtotime($ot['time_in'])) ?></td>
+                                            <td><span class="text-danger fw-bold"><?= date('h:i A', strtotime($ot['time_out'])) ?></span></td>
+                                            <td class="text-center">
+                                                <span class="badge bg-danger fs-6"><?= number_format($ot['pending_overtime'], 2) ?> hrs</span>
+                                            </td>
+                                            <td class="text-end pe-4 action-cols">
+                                                <button class="btn btn-sm btn-success shadow-sm" onclick="approveOT(<?= $ot['attendance_id'] ?>)" title="Approve as Paid OT">
+                                                    <i class="bi bi-check-circle me-1"></i> Approve
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger shadow-sm ms-1" onclick="declineOT(<?= $ot['attendance_id'] ?>)" title="Decline (Cap at 5 PM)">
+                                                    <i class="bi bi-x-circle me-1"></i> Decline
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
+
             <div class="card shadow-sm border-0 mb-4">
                 <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-3">
                     <span class="fw-bold"><i class="bi bi-list-ul me-2"></i>Daily Roster</span>
@@ -243,7 +302,7 @@ try {
                                     <th>Time Out</th>
                                     <th>Total Hours</th>
                                     <th>Status</th>
-                                    <th class="text-end pe-4">Actions</th>
+                                    <th class="text-end pe-4 action-cols">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -289,17 +348,25 @@ try {
                                             <td>
                                                 <?php
                                                 $statusClass = 'secondary';
-                                                if ($log['status'] === 'Present') $statusClass = 'success';
-                                                elseif ($log['status'] === 'Late') $statusClass = 'warning text-dark';
-                                                elseif ($log['status'] === 'Absent') $statusClass = 'danger';
-                                                elseif ($log['status'] === 'Absent / No Record') $statusClass = 'danger';
+                                                $displayStatus = htmlspecialchars($log['status']);
+
+                                                if ($log['status'] === 'Present') {
+                                                    $statusClass = 'success';
+                                                    $displayStatus = 'Present / On-Time';
+                                                } elseif ($log['status'] === 'Late') {
+                                                    $statusClass = 'warning text-dark';
+                                                } elseif ($log['status'] === 'Absent') {
+                                                    $statusClass = 'danger';
+                                                } elseif ($log['status'] === 'Absent / No Record') {
+                                                    $statusClass = 'danger';
+                                                }
                                                 ?>
                                                 <span class="badge bg-<?= $statusClass ?>">
-                                                    <?= htmlspecialchars($log['status']) ?>
+                                                    <?= $displayStatus ?>
                                                 </span>
                                             </td>
 
-                                            <td class="text-end pe-4">
+                                            <td class="text-end pe-4 action-cols">
                                                 <?php if (hasPermission('att_approve') && !empty($log['attendance_id'])): ?>
                                                     <button class="btn btn-sm btn-secondary" onclick="editAttendance(<?= $log['attendance_id'] ?>)" title="Edit Record">
                                                         <i class="bi bi-pencil-square"></i> Edit
@@ -419,6 +486,7 @@ try {
         </div>
     </div>
 
+    <!--<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>-->
     <script>
         // search filter
         document.getElementById('attendanceSearch').addEventListener('keyup', function() {
@@ -515,6 +583,69 @@ try {
                 Swal.fire('Error', 'Something went wrong processing the manual log.', 'error');
             }
         });
+
+        // overtime approval logic
+        function approveOT(id) {
+            Swal.fire({
+                title: 'Approve Overtime?',
+                text: "This will move the excess hours to Approved Overtime.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#198754',
+                confirmButtonText: 'Yes, Approve'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        const res = await fetch(`../../backend/attendance/approve_ot.php?id=${id}`);
+                        const data = await res.json();
+                        if (data.success) {
+                            Swal.fire({
+                                    icon: 'success',
+                                    title: 'Approved!',
+                                    timer: 1500,
+                                    showConfirmButton: false
+                                })
+                                .then(() => location.reload());
+                        } else {
+                            Swal.fire('Error', data.message, 'error');
+                        }
+                    } catch (e) {
+                        Swal.fire('Error', 'Server failed to process.', 'error');
+                    }
+                }
+            });
+        }
+
+        function declineOT(id) {
+            Swal.fire({
+                title: 'Decline Overtime?',
+                text: "This will discard the excess hours. The employee's pay will remain capped at 5:00 PM.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                confirmButtonText: 'Yes, Decline'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        const res = await fetch(`../../backend/attendance/decline_ot.php?id=${id}`);
+                        const data = await res.json();
+                        if (data.success) {
+                            Swal.fire({
+                                    icon: 'success',
+                                    title: 'Declined!',
+                                    timer: 1500,
+                                    showConfirmButton: false
+                                })
+                                .then(() => location.reload());
+                        } else {
+                            Swal.fire('Error', data.message, 'error');
+                        }
+                    } catch (e) {
+                        Swal.fire('Error', 'Server failed to process.', 'error');
+                    }
+                }
+            });
+        }
     </script>
 
 </body>

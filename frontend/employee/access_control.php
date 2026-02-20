@@ -32,42 +32,48 @@ if (!$employee) {
 // extract initials for avatar
 $initials = strtoupper(substr($employee['first_name'], 0, 1) . substr($employee['last_name'], 0, 1));
 
-// module permissions structure
+// module and feature definitions
 $modules = [
-    'Inventory' => [
-        'icon' => 'bi-box-seam',
-        'features' => [
-            'inv_view' => 'View Inventory',
-            'inv_add' => 'Add New Items',
-            'inv_edit' => 'Edit Items',
-            'inv_delete' => 'Delete Items',
-            'inv_stock_in' => 'Stock IN',
-            'inv_stock_out' => 'Stock OUT',
-        ]
-    ],
-    'Ordering' => [
-        'icon' => 'bi-cart-check',
-        'features' => [
-            'order_view' => 'View Orders',
-            'order_create' => 'Create New Order',
-            'order_status' => 'Update Order Status',
-        ]
-    ],
-    'Employees' => [
+    'Employees & HR' => [
         'icon' => 'bi-people',
         'features' => [
-            'emp_view' => 'View Employee List',
-            'emp_add' => 'Add New Employee',
+            'emp_view' => 'View Employee Directory',
+            'emp_add'  => 'Add New Employee',
             'emp_edit' => 'Edit Employee Details',
         ]
     ],
-    'Payroll & Attendance' => [
+    'Attendance Management' => [
+        'icon' => 'bi-calendar-check',
+        'features' => [
+            'att_view'    => 'View Attendance & Timesheets',
+            'att_approve' => 'Approve Overtime & Add Manual Logs',
+        ]
+    ],
+    'Payroll & Cash Advances' => [
         'icon' => 'bi-wallet2',
         'features' => [
-            'att_view' => 'View Attendance',
-            'att_approve' => 'Approve/Reject Attendance',
-            'payroll_view' => 'View Payroll Records',
-            'payroll_generate' => 'Generate Payroll',
+            'payroll_view'     => 'View Payroll History',
+            'payroll_generate' => 'Generate Weekly Payroll',
+            'ca_manage'        => 'Manage & Approve Cash Advances',
+        ]
+    ],
+    'Inventory Management' => [
+        'icon' => 'bi-box-seam',
+        'features' => [
+            'inv_view'      => 'View Inventory & Analytics',
+            'inv_add'       => 'Add Items, Categories & Suppliers',
+            'inv_edit'      => 'Edit Inventory Items',
+            'inv_delete'    => 'Delete Inventory Items',
+            'inv_stock_in'  => 'Process Stock IN',
+            'inv_stock_out' => 'Process Stock OUT',
+        ]
+    ],
+    'POS & Ordering' => [
+        'icon' => 'bi-cart-check',
+        'features' => [
+            'order_view'   => 'View Order List & History',
+            'order_create' => 'Create POS / New Orders',
+            'order_status' => 'Update Order Status & Payment',
         ]
     ]
 ];
@@ -203,8 +209,8 @@ try {
                                 </div>
                             </div>
                         </div>
-                        <a href="employee_module.php" class="btn btn-secondary shadow-sm">
-                            <i class="bi bi-arrow-left me-1"></i> Back to Directory
+                        <a href="employee_module.php" class="btn btn-secondary shadow-sm fw-bold">
+                            <i class="bi bi-arrow-left me-1"></i> Back
                         </a>
                     </div>
                 </div>
@@ -217,7 +223,7 @@ try {
                                     <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center py-3">
                                         <span class="fs-5"><i class="bi <?= $moduleData['icon'] ?> me-2 text-warning"></i> <?= $moduleName ?></span>
                                         <div class="form-check form-switch m-0 d-flex align-items-center" title="Toggle all permissions for <?= $moduleName ?>">
-                                            <input class="form-check-input select-all-toggle fs-4 m-0" type="checkbox" data-target="<?= strtolower(str_replace([' ', '&'], '', $moduleName)) ?>">
+                                            <input class="form-check-input select-all-toggle fs-4 m-0 shadow-sm" type="checkbox" data-target="<?= strtolower(str_replace([' ', '&'], '', $moduleName)) ?>">
                                         </div>
                                     </div>
                                     <div class="card-body p-3">
@@ -231,7 +237,7 @@ try {
                                                     <label class="form-check-label fw-bold text-dark stretched-link mb-0" for="<?= $key ?>" style="cursor: pointer;">
                                                         <?= $label ?>
                                                     </label>
-                                                    <input class="form-check-input fs-5 m-0 z-2" type="checkbox" name="<?= $key ?>" id="<?= $key ?>" value="1" <?= $isChecked ?>>
+                                                    <input class="form-check-input fs-5 m-0 z-2 shadow-sm" type="checkbox" name="<?= $key ?>" id="<?= $key ?>" value="1" <?= $isChecked ?>>
                                                 </div>
                                             <?php endforeach; ?>
                                         </div>
@@ -243,7 +249,7 @@ try {
 
                     <div class="card shadow-sm border-0 bg-white p-4">
                         <div class="d-flex justify-content-end gap-3 align-items-center">
-                            <span class="text-muted small me-auto"><i class="bi bi-info-circle me-1"></i> Changes will take effect the next time the user logs in.</span>
+                            <span class="text-muted small me-auto"><i class="bi bi-info-circle-fill me-1 text-primary"></i> Checking a box grants the employee access to that specific feature. Changes will take effect immediately.</span>
                             <a href="employee_module.php" class="btn btn-outline-secondary px-4 fw-bold">Cancel</a>
                             <button type="submit" class="btn btn-warning px-5 fw-bold text-dark shadow-sm">
                                 <i class="bi bi-save me-2"></i>Save Permissions

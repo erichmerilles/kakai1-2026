@@ -25,7 +25,7 @@ if (!$employee_id || !$time_in) {
 try {
     $timeInParsed = strtotime($time_in);
     $timeInHourMinute = date('H:i', $timeInParsed);
-    
+
     // auto determine status based on time_in
     $status = ($timeInHourMinute > '07:00') ? 'Late' : 'Present';
 
@@ -51,8 +51,6 @@ try {
     $stmt->execute([$employee_id, $time_in, $finalTimeOut, $status, $totalHours]);
 
     echo json_encode(['success' => true, 'message' => 'Manual attendance log saved successfully.']);
-
 } catch (PDOException $e) {
     echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
 }
-?>
